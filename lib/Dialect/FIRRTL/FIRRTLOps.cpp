@@ -2205,13 +2205,33 @@ LogicalResult ConnectOp::verify() {
 }
 
 LogicalResult StrictConnectOp::verify() {
+  auto typeMismatch = [&] {
+    return emitError("type mismatch between destination ")
+           << getDest().getType() << " and source " << getSrc().getType();
+  };
+
   if (auto type = getDest().getType().dyn_cast<FIRRTLType>()) {
     auto baseType = type.dyn_cast<FIRRTLBaseType>();
 
     // Analog types cannot be connected and must be attached.
     if (baseType && baseType.containsAnalog())
       return emitError("analog types may not be connected");
-  }
+
+    auto srcType = getSrc().getType();
+    if (type != srcType) {
+      if (baseType) {
+        if (baseType.getConstType(true) != srcType)
+          return typeMismatch();
+      } else {
+        auto refType = type.dyn_cast<RefType>();
+        auto srcRefType = srcType.dyn_cast<RefType>();
+        if (!refType || !srcRefType ||
+            refType.getType().getConstType(true) != srcRefType.getType())
+          return typeMismatch();
+      }
+    }
+  } else if (getDest().getType() != getSrc().getType())
+    return typeMismatch();
 
   // Check that the flows make sense.
   if (failed(checkConnectFlow(*this)))
@@ -2222,6 +2242,26 @@ LogicalResult StrictConnectOp::verify() {
     return failure();
 
   return success();
+}
+
+static ParseResult parseConstDecay(OpAsmParser &parser, Type &destType,
+                                   Type &srcType) {
+  if (parser.parseType(destType))
+    return failure();
+  if (succeeded(parser.parseOptionalComma())) {
+    if (parser.parseType(srcType))
+      return failure();
+  } else {
+    srcType = destType;
+  }
+  return success();
+}
+
+static void printConstDecay(OpAsmPrinter &p, StrictConnectOp op, Type destType,
+                            Type srcType) {
+  p << destType;
+  if (srcType != destType)
+    p << ", " << srcType;
 }
 
 void WhenOp::createElseRegion() {
