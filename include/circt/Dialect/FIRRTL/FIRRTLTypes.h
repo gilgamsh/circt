@@ -22,6 +22,7 @@
 namespace circt {
 namespace firrtl {
 namespace detail {
+struct FIRRTLBaseTypeStorage;
 struct WidthTypeStorage;
 struct BundleTypeStorage;
 struct VectorTypeStorage;
@@ -69,8 +70,12 @@ protected:
 };
 
 // Common base class for all base FIRRTL types.
-class FIRRTLBaseType : public FIRRTLType {
+class FIRRTLBaseType
+    : public FIRRTLType::TypeBase<FIRRTLBaseType, FIRRTLType,
+                                  detail::FIRRTLBaseTypeStorage> {
 public:
+  using Base::Base;
+
   /// Return true if this is a "passive" type - one that contains no "flip"
   /// types recursively within itself.
   bool isPassive() { return getRecursiveTypeProperties().isPassive; }
@@ -149,9 +154,6 @@ public:
   /// which is a bundle or vector is not counted, but the recursive ground
   /// fields of are.
   uint64_t getGroundFields() const;
-
-protected:
-  using FIRRTLType::FIRRTLType;
 };
 
 /// Returns whether the two types are equivalent.  This implements the exact
@@ -231,10 +233,6 @@ public:
   /// Return the width of this type, or -1 if it has none specified.
   int32_t getWidthOrSentinel();
 
-  /// Returns true if this is a 'const' type that can only hold compile-time
-  /// constant values
-  bool isConst();
-
   static bool classof(Type type) {
     return type.isa<SIntType>() || type.isa<UIntType>();
   }
@@ -301,25 +299,6 @@ struct DenseMapInfo<circt::firrtl::FIRRTLType> {
   }
   static unsigned getHashValue(FIRRTLType val) { return mlir::hash_value(val); }
   static bool isEqual(FIRRTLType LHS, FIRRTLType RHS) { return LHS == RHS; }
-};
-
-template <>
-struct DenseMapInfo<circt::firrtl::FIRRTLBaseType> {
-  using FIRRTLBaseType = circt::firrtl::FIRRTLBaseType;
-  static FIRRTLBaseType getEmptyKey() {
-    auto pointer = llvm::DenseMapInfo<void *>::getEmptyKey();
-    return FIRRTLBaseType(static_cast<mlir::Type::ImplType *>(pointer));
-  }
-  static FIRRTLBaseType getTombstoneKey() {
-    auto pointer = llvm::DenseMapInfo<void *>::getTombstoneKey();
-    return FIRRTLBaseType(static_cast<mlir::Type::ImplType *>(pointer));
-  }
-  static unsigned getHashValue(FIRRTLBaseType val) {
-    return mlir::hash_value(val);
-  }
-  static bool isEqual(FIRRTLBaseType LHS, FIRRTLBaseType RHS) {
-    return LHS == RHS;
-  }
 };
 
 } // namespace llvm
