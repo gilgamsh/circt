@@ -439,6 +439,18 @@ FIRRTLBaseType FIRRTLBaseType::getPassiveType() {
       });
 }
 
+/// Return a 'const' or non-'const' version of this type.
+FIRRTLBaseType FIRRTLBaseType::getConstType(bool isConst) {
+  return TypeSwitch<FIRRTLBaseType, FIRRTLBaseType>(*this)
+      .Case<ClockType, ResetType, AsyncResetType, AnalogType, SIntType,
+            UIntType, BundleType, FVectorType>(
+          [&](auto type) { return type.getConstType(isConst); })
+      .Default([](Type) {
+        llvm_unreachable("unknown FIRRTL type");
+        return FIRRTLBaseType();
+      });
+}
+
 /// Return this type with all ground types replaced with UInt<1>.  This is
 /// used for `mem` operations.
 FIRRTLBaseType FIRRTLBaseType::getMaskType() {
@@ -648,8 +660,12 @@ bool firrtl::areTypesEquivalent(FIRRTLType destFType, FIRRTLType srcFType) {
   }
 
   // Ground types can be connected if their passive, widthless versions
-  // are equal.
-  return destType.getWidthlessType() == srcType.getWidthlessType();
+  // are equal or the widthless source type is a const version of the widthless
+  // destination type.
+  auto widthlessDestType = destType.getWidthlessType();
+  auto widthlessSrcType = srcType.getWidthlessType();
+  return widthlessDestType == widthlessSrcType ||
+         widthlessDestType == widthlessSrcType.getConstType(false);
 }
 
 /// Returns whether the two types are weakly equivalent.
@@ -701,8 +717,12 @@ bool firrtl::areTypesWeaklyEquivalent(FIRRTLType destFType, FIRRTLType srcFType,
     });
 
   // Ground types can be connected if their passive, widthless versions
-  // are equal and leaf flippedness matches.
-  return destType.getWidthlessType() == srcType.getWidthlessType() &&
+  // are equal or the widthless source type is a const version of the widthless
+  // destination type and leaf flippedness matches.
+  auto widthlessDestType = destType.getWidthlessType();
+  auto widthlessSrcType = srcType.getWidthlessType();
+  return (widthlessDestType == widthlessSrcType ||
+          widthlessDestType == widthlessSrcType.getConstType(false)) &&
          destFlip == srcFlip;
 }
 
@@ -792,6 +812,12 @@ struct circt::firrtl::detail::WidthTypeStorage : detail::FIRRTLBaseTypeStorage {
   int32_t width;
 };
 
+IntType IntType::getConstType(bool isConst) {
+  if (auto sIntType = dyn_cast<SIntType>())
+    return sIntType.getConstType(isConst);
+  return cast<UIntType>().getConstType(isConst);
+}
+
 //===----------------------------------------------------------------------===//
 // SIntType
 //===----------------------------------------------------------------------===//
@@ -812,6 +838,12 @@ LogicalResult SIntType::verify(function_ref<InFlightDiagnostic()> emitError,
 
 int32_t SIntType::getWidthOrSentinel() const { return getImpl()->width; }
 
+SIntType SIntType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getContext(), getWidthOrSentinel(), isConst);
+}
+
 //===----------------------------------------------------------------------===//
 // UIntType
 //===----------------------------------------------------------------------===//
@@ -831,6 +863,12 @@ LogicalResult UIntType::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 int32_t UIntType::getWidthOrSentinel() const { return getImpl()->width; }
+
+UIntType UIntType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getContext(), getWidthOrSentinel(), isConst);
+}
 
 //===----------------------------------------------------------------------===//
 // Bundle Type
@@ -921,6 +959,18 @@ FIRRTLBaseType BundleType::getPassiveType() {
   auto passiveType = BundleType::get(getContext(), newElements);
   impl->passiveContainsAnalogTypeInfo.setPointer(passiveType);
   return passiveType;
+}
+
+BundleType BundleType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  SmallVector<BundleType::BundleElement, 16> newElements;
+  newElements.reserve(getNumElements());
+  for (auto element : getElements()) {
+    element.type = element.type.getConstType(isConst);
+    newElements.push_back(element);
+  }
+  return get(getContext(), newElements);
 }
 
 std::optional<unsigned> BundleType::getElementIndex(StringAttr name) {
@@ -1087,6 +1137,12 @@ FIRRTLBaseType FVectorType::getPassiveType() {
   return passiveType;
 }
 
+FVectorType FVectorType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getElementType().getConstType(isConst), getNumElements());
+}
+
 uint64_t FVectorType::getFieldID(uint64_t index) {
   return 1 + index * (getElementType().getMaxFieldID() + 1);
 }
@@ -1177,6 +1233,42 @@ LogicalResult AnalogType::verify(function_ref<InFlightDiagnostic()> emitError,
 }
 
 int32_t AnalogType::getWidthOrSentinel() const { return getImpl()->width; }
+
+AnalogType AnalogType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getContext(), getWidthOrSentinel(), isConst);
+}
+
+//===----------------------------------------------------------------------===//
+// ClockType
+//===----------------------------------------------------------------------===//
+
+ClockType ClockType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getContext(), isConst);
+}
+
+//===----------------------------------------------------------------------===//
+// ResetType
+//===----------------------------------------------------------------------===//
+
+ResetType ResetType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getContext(), isConst);
+}
+
+//===----------------------------------------------------------------------===//
+// AsyncResetType
+//===----------------------------------------------------------------------===//
+
+AsyncResetType AsyncResetType::getConstType(bool isConst) {
+  if (isConst == this->isConst())
+    return *this;
+  return get(getContext(), isConst);
+}
 
 //===----------------------------------------------------------------------===//
 // FIRRTLDialect
