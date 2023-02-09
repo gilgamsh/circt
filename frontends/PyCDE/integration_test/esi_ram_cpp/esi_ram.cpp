@@ -43,70 +43,56 @@ struct EsiDpiInterfaceDesc {
 
 // ESI CPP API goes here. This is general for all backends.
 
-// Bas class for all ports. This will contact the backend to get a port
-// handle.
+// Bas class for all ports.
 template <typename TBackend>
 class Port {
-public:
-  // std::in_place_type allows for type deduction of the template arguments
-  // (template constructor must be able to deduce its template parameters from
-  // its arguments).
-  template <typename TRead, typename TWrite>
-  Port(std::in_place_type_t<TRead>, std::in_place_type_t<TWrite>,
-       const std::vector<std::string> &clientPath, TBackend &backend,
-       const std::string &implType)
-      : backend(&backend) {}
 
-private:
+public:
+  Port(const std::vector<std::string> &clientPath, TBackend &backend,
+       const std::string &implType)
+      : backend(&backend), clientPath(clientPath) {}
+
+  // Initializes this port - have to do it post-construction due to initBackend
+  // being pure virtual.
+  void init() { initBackend(); }
+
+  // Hook for the backend port implementation to initialize the port.
+  virtual void initBackend() = 0;
+
+protected:
   TBackend *backend = nullptr;
+  std::vector<std::string> clientPath;
 };
 
-template <typename ReadType, typename WriteType, typename TBackend>
-class ReadWritePort : public Port<TBackend> {
+template <typename WriteType, typename ReadType, typename TBackend>
+class ReadWritePort
+    : public TBackend::template ReadWritePort<WriteType, ReadType> {
 public:
-  using TPort = Port<TBackend>;
+  using Impl = typename TBackend::template ReadWritePort<WriteType, ReadType>;
+  static_assert(std::is_base_of<ESICPP::Port<TBackend>, Impl>::value,
+                "Backend port must be a subclass of ESICPP::Port");
+
+  auto operator()(WriteType arg) { return getImpl()->operator()(arg); }
+  Impl *getImpl() { return static_cast<Impl *>(this); }
+
   ReadWritePort(const std::vector<std::string> &clientPath, TBackend &backend,
                 const std::string &implType)
-      : Port<TBackend>(std::in_place_type<ReadType>,
-                       std::in_place_type<WriteType>, clientPath, backend,
-                       implType) {
-    // If a backend doesn't support a particular implementation type, just skip
-    // it. We don't want to error out on services which aren't being used.
-    if (backend.supportsImpl(implType)) {
-      // Create the port
-      port =
-          backend.template getPort<typename ReadType::BackendType,
-                                   typename WriteType::BackendType>(clientPath);
-    }
-  }
-
-  ReadType operator()(WriteType arg) {
-    // something like:
-    auto req = port->sendRequest();
-    req.setMsg(arg.toCapnp().asReader());
-    return ReadType();
-  }
-
-  std::optional<typename ::EsiDpiEndpoint<
-      typename ReadType::BackendType, typename WriteType::BackendType>::Client>
-      port;
+      : Impl(clientPath, backend, implType) {}
 };
 
 template <typename WriteType, typename TBackend>
-class WritePort : public Port<TBackend> {
+class WritePort : public TBackend::template WritePort<WriteType> {
 public:
+  using Impl = typename TBackend::template WritePort<WriteType>;
+  static_assert(std::is_base_of<ESICPP::Port<TBackend>, Impl>::value,
+                "Backend port must be a subclass of ESICPP::Port");
+
+  auto operator()(WriteType arg) { return getImpl()->operator()(arg); }
+  Impl *getImpl() { return static_cast<Impl *>(this); }
+
   WritePort(const std::vector<std::string> &clientPath, TBackend &backend,
             const std::string &implType)
-      : Port<TBackend>(std::in_place_type<void>, std::in_place_type<WriteType>,
-                       clientPath, backend, implType) {
-
-    auto ep = backend.template getPort<void, WriteType>(clientPath);
-  }
-
-  void operator()(WriteType arg) {
-    // something like:
-    // return backend(arg.toBackendType());
-  }
+      : Impl(clientPath, backend, implType) {}
 };
 
 template <typename TBackend>
@@ -114,6 +100,13 @@ class Module {
 public:
   Module(const std::vector<std::shared_ptr<Port<TBackend>>> &ports)
       : ports(ports) {}
+
+  // Initializes this module
+  void init() {
+    // Initialize all ports
+    for (auto &port : ports)
+      port->init();
+  }
 
 protected:
   std::vector<std::shared_ptr<Port<TBackend>>> ports;
@@ -124,30 +117,24 @@ protected:
 namespace esi_cosim {
 // ESI cosim backend goes here.
 
-template <typename TClient, typename T>
-class CosimPort {
+template <typename WriteType, typename ReadType>
+class CosimReadWritePort;
+
+template <typename WriteType>
+class CosimWritePort;
+
+class CosimBackend {
 public:
-  CosimPort(TClient &client, const std::string &epName) {}
+  // Using directives to point the base class implementations to the cosim
+  // port implementations.
 
-  template <typename TMessage>
-  bool write(TMessage &msg) {
+  template <typename WriteType, typename ReadType>
+  using ReadWritePort = CosimReadWritePort<WriteType, ReadType>;
 
-    // ep.send(msg).wait();
-    return true;
-  }
+  template <typename WriteType>
+  using WritePort = CosimWritePort<WriteType>;
 
-  template <typename TMessage>
-  TMessage read(TMessage &msg) {
-    // ep.recv(msg).wait();
-    return true;
-  }
-
-private:
-};
-
-class Cosim {
-public:
-  Cosim(const std::string &host, uint64_t hostPort) {
+  CosimBackend(const std::string &host, uint64_t hostPort) {
     ezClient = std::make_unique<capnp::EzRpcClient>(host, hostPort);
     dpiClient = std::make_unique<CosimDpiServer::Client>(
         ezClient->getMain<CosimDpiServer>());
@@ -182,7 +169,7 @@ public:
     return *endpoints;
   }
 
-  template <typename TRead, typename TWrite>
+  template <typename CnPWriteType, typename CnPReadType>
   auto getPort(const std::vector<std::string> &clientPath) {
     // Join client path into a single string with '.' as a separator.
     std::string clientPathStr;
@@ -195,7 +182,7 @@ public:
     // Everything is nested under "TOP.top"
     clientPathStr = "TOP.top." + clientPathStr;
 
-    auto openReq = dpiClient->openRequest<TRead, TWrite>();
+    auto openReq = dpiClient->openRequest<CnPWriteType, CnPReadType>();
 
     // Scan through the available endpoints to find the requested one.
     bool found = false;
@@ -225,10 +212,77 @@ public:
     return implType == "cosim";
   }
 
+  kj::WaitScope &getWaitScope() { return ezClient->getWaitScope(); }
+
 protected:
   std::unique_ptr<capnp::EzRpcClient> ezClient;
   std::unique_ptr<CosimDpiServer::Client> dpiClient;
   std::optional<std::vector<ESICPP::EsiDpiInterfaceDesc>> endpoints;
+};
+
+template <typename WriteType, typename ReadType>
+class CosimReadWritePort : public ESICPP::Port<CosimBackend> {
+  using BasePort = ESICPP::Port<CosimBackend>;
+
+public:
+  CosimReadWritePort(const std::vector<std::string> &clientPath,
+                     CosimBackend &backend, const std::string &implType)
+      : BasePort(clientPath, backend, implType) {}
+
+  ReadType operator()(WriteType arg) {
+    auto req = port->sendRequest();
+    arg.fillCapnp(req.getMsg());
+    req.send().wait(this->backend->getWaitScope());
+    std::optional<capnp::Response<typename EsiDpiEndpoint<
+        typename WriteType::CPType, typename ReadType::CPType>::RecvResults>>
+        resp;
+    do {
+      auto recvReq = port->recvRequest();
+      recvReq.setBlock(false);
+
+      resp = recvReq.send().wait(this->backend->getWaitScope());
+    } while (!resp->getHasData());
+    auto data = resp->getResp();
+    return ReadType::fromCapnp(data);
+  }
+
+  void initBackend() override {
+    port =
+        backend->getPort<typename WriteType::CPType, typename ReadType::CPType>(
+            clientPath);
+  }
+
+private:
+  // Handle to the underlying endpoint.
+  std::optional<typename ::EsiDpiEndpoint<typename WriteType::CPType,
+                                          typename ReadType::CPType>::Client>
+      port;
+};
+
+template <typename WriteType>
+class CosimWritePort : public ESICPP::Port<CosimBackend> {
+  using BasePort = ESICPP::Port<CosimBackend>;
+
+public:
+  CosimWritePort(const std::vector<std::string> &clientPath,
+                 CosimBackend &backend, const std::string &implType)
+      : BasePort(clientPath, backend, implType) {}
+
+  void initBackend() override {
+    port = backend->getPort<typename WriteType::CPType, ::I1>(clientPath);
+  }
+
+  void operator()(WriteType arg) {
+    auto req = port->sendRequest();
+    arg.fillCapnp(req.getMsg());
+    req.send().wait(this->backend->getWaitScope());
+  }
+
+private:
+  // Handle to the underlying endpoint.
+  std::optional<
+      typename ::EsiDpiEndpoint<typename WriteType::CPType, ::I1>::Client>
+      port;
 };
 
 } // namespace esi_cosim
@@ -253,16 +307,13 @@ struct I1 {
   auto operator<=>(const I1 &) const = default;
 
   // Generated sibling type.
-  using BackendType = ::I1;
-  BackendType::Builder toCapnp() {
-    auto cp = BackendType::Builder(capnp::_::StructBuilder());
-    cp.setI(i);
-    return cp;
-  }
+  using CPType = ::I1;
+  void fillCapnp(CPType::Builder cp) { cp.setI(i); }
+  static I1 fromCapnp(CPType::Reader msg) { return I1(msg.getI()); }
 };
 
 struct I3 {
-  using BackendType = ::I3;
+  using CPType = ::I3;
   uint8_t i;
 
   // Convenience constructor due to unary type (allows implicit conversion from
@@ -273,15 +324,12 @@ struct I3 {
   operator uint8_t() const { return i; }
   auto operator<=>(const I3 &) const = default;
 
-  BackendType::Builder toCapnp() {
-    auto cp = BackendType::Builder(capnp::_::StructBuilder());
-    cp.setI(i);
-    return cp;
-  }
+  void fillCapnp(CPType::Builder cp) { cp.setI(i); }
+  static I3 fromCapnp(CPType::Reader msg) { return I3(msg.getI()); }
 };
 
 struct I64 {
-  using BackendType = ::I64;
+  using CPType = ::I64;
   uint64_t i;
   // use default constructors for all types.
   I64(uint64_t i) : i(i) {}
@@ -290,25 +338,25 @@ struct I64 {
   auto operator<=>(const I64 &) const = default;
 
   operator uint64_t() const { return i; }
-  BackendType::Builder toCapnp() {
-    auto cp = BackendType::Builder(capnp::_::StructBuilder());
-    cp.setI(i);
-    return cp;
-  }
+  void fillCapnp(CPType::Builder cp) { cp.setI(i); }
+  static I64 fromCapnp(CPType::Reader msg) { return I64(msg.getI()); }
 };
 
 struct Struct16871797234873963366 {
-  using BackendType = ::Struct16871797234873963366;
+  using CPType = ::Struct16871797234873963366;
   uint8_t address;
   uint64_t data;
 
   auto operator<=>(const Struct16871797234873963366 &) const = default;
 
-  BackendType::Builder toCapnp() {
-    auto cp = BackendType::Builder(capnp::_::StructBuilder());
+  void fillCapnp(CPType::Builder cp) {
     cp.setAddress(address);
     cp.setData(data);
-    return cp;
+  }
+
+  static Struct16871797234873963366 fromCapnp(CPType::Reader msg) {
+    return Struct16871797234873963366{.address = msg.getAddress(),
+                                      .data = msg.getData()};
   }
 };
 
@@ -318,8 +366,8 @@ class MemComms : public ESICPP::Module<TBackend> {
 
 public:
   // Port type declarations
-  using Tread0 = ESICPP::ReadWritePort</*readType=*/ESIMem::I64,
-                                       /*writeType=*/ESIMem::I3, TBackend>;
+  using Tread0 = ESICPP::ReadWritePort</*readType=*/ESIMem::I3,
+                                       /*writeType=*/ESIMem::I64, TBackend>;
   using Tread0Ptr = std::shared_ptr<Tread0>;
 
   using Tloopback0 = ESICPP::ReadWritePort<
@@ -341,92 +389,34 @@ public:
 };
 
 template <typename TBackend>
-class DeclareRandomAccessMemory : public ESICPP::Module<TBackend> {
-  using Port = ESICPP::Port<TBackend>;
-
-public:
-  // Port type declarations
-  using Tread0 = ESICPP::ReadWritePort</*readType=*/ESIMem::I3,
-                                       /*writeType=*/ESIMem::I64, TBackend>;
-  using Tread0Ptr = std::shared_ptr<Tread0>;
-
-  using Tread1 = ESICPP::ReadWritePort</*readType=*/ESIMem::I3,
-                                       /*writeType=*/ESIMem::I64, TBackend>;
-  using Tread1Ptr = std::shared_ptr<Tread1>;
-
-  using Twrite0 = ESICPP::ReadWritePort<
-      /*readType=*/ESIMem::Struct16871797234873963366,
-      /*writeType=*/ESIMem::I1, TBackend>;
-  using Twrite0Ptr = std::shared_ptr<Twrite0>;
-
-  using Twrite1 = ESICPP::ReadWritePort<
-      /*readType=*/ESIMem::Struct16871797234873963366,
-      /*writeType=*/ESIMem::I1, TBackend>;
-  using Twrite1Ptr = std::shared_ptr<Twrite1>;
-
-  DeclareRandomAccessMemory(Tread0Ptr read0, Tread1Ptr read1, Twrite0Ptr write0,
-                            Twrite1Ptr write1)
-      : ESICPP::Module<TBackend>({read0, read1, write0, write1}), read0(read0),
-        read1(read1), write0(write0), write1(write1) {}
-
-  Tread0Ptr read0;
-  Tread1Ptr read1;
-  Twrite0Ptr write0;
-  Twrite1Ptr write1;
-  std::vector<std::shared_ptr<Port>> ports;
-};
-
-template <typename TBackend>
 class Top {
 
 public:
   Top(TBackend &backend) {
 
-    { // declram initialization
-      auto read0 = std::make_shared<
-          ESICPP::ReadWritePort</*readType=*/ESIMem::I3,
-                                /*writeType=*/ESIMem::I64, TBackend>>(
-          std::vector<std::string>{"Mid", ""}, backend, "sv_mem");
-      auto read1 = std::make_shared<
-          ESICPP::ReadWritePort</*readType=*/ESIMem::I3,
-                                /*writeType=*/ESIMem::I64, TBackend>>(
-          std::vector<std::string>{""}, backend, "sv_mem");
-
-      auto write0 = std::make_shared<ESICPP::ReadWritePort<
-          /*readType=*/ESIMem::Struct16871797234873963366,
-          /*writeType=*/ESIMem::I1, TBackend>>(
-          std::vector<std::string>{"Mid", ""}, backend, "sv_mem");
-      auto write1 = std::make_shared<ESICPP::ReadWritePort<
-          /*readType=*/ESIMem::Struct16871797234873963366,
-          /*writeType=*/ESIMem::I1, TBackend>>(std::vector<std::string>{""},
-                                               backend, "sv_mem");
-
-      declram = std::make_unique<DeclareRandomAccessMemory<TBackend>>(
-          read0, read1, write0, write1);
-    };
-
     {
 
       // memComms initialization
       auto read0 = std::make_shared<
-          ESICPP::ReadWritePort</*readType=*/ESIMem::I64,
-                                /*writeType=*/ESIMem::I3, TBackend>>(
+          ESICPP::ReadWritePort</*writeType=*/ESIMem::I3,
+                                /*readType=*/ESIMem::I64, TBackend>>(
           std::vector<std::string>{"read"}, backend, "cosim");
 
       auto loopback0 = std::make_shared<ESICPP::ReadWritePort<
-          /*readType=*/ESIMem::Struct16871797234873963366,
-          /*writeType=*/ESIMem::Struct16871797234873963366, TBackend>>(
+          /*writeType=*/ESIMem::Struct16871797234873963366,
+          /*readType=*/ESIMem::Struct16871797234873963366, TBackend>>(
           std::vector<std::string>{"loopback"}, backend, "cosim");
 
       auto write0 = std::make_shared<ESICPP::WritePort<
-          /*writeType=*/ESIMem::Struct16871797234873963366, TBackend>>(
+          /*readType=*/ESIMem::Struct16871797234873963366, TBackend>>(
           std::vector<std::string>{"write"}, backend, "cosim");
       memComms = std::make_unique<MemComms<TBackend>>(read0, loopback0, write0);
+      memComms->init();
     };
 
   }; // namespace ESIMem
 
-  std::unique_ptr<DeclareRandomAccessMemory<TBackend>> declram;
+  // std::unique_ptr<DeclareRandomAccessMemory<TBackend>> declram;
   std::unique_ptr<MemComms<TBackend>> memComms;
 };
 
@@ -448,25 +438,33 @@ int runTest(TBackend &backend) {
 
   auto read_result = (*top.memComms->read0)(2);
   if (read_result != ESIMem::I64(0))
-    return 1;
+    return 2;
   read_result = (*top.memComms->read0)(3);
   if (read_result != ESIMem::I64(0))
-    return 1;
+    return 3;
 
   (*top.memComms->write0)(write_cmd);
   read_result = (*top.memComms->read0)(2);
   if (read_result != ESIMem::I64(42))
-    return 1;
+    return 4;
   read_result = (*top.memComms->read0)(3);
   if (read_result != ESIMem::I64(42))
-    return 1;
+    return 5;
+
+  // Re-write a 0 to the memory (mostly for debugging purposes to allow us to
+  // keep the server alive and rerun the test).
+  write_cmd = ESIMem::Struct16871797234873963366{.address = 2, .data = 0};
+  (*top.memComms->write0)(write_cmd);
+  read_result = (*top.memComms->read0)(2);
+  if (read_result != ESIMem::I64(0))
+    return 6;
 
   return 0;
 }
 
 int run_cosim_test(const std::string &host, unsigned port) {
   // Run test with cosimulation backend.
-  esi_cosim::Cosim cosim(host, port);
+  esi_cosim::CosimBackend cosim(host, port);
   return runTest(cosim);
 }
 
@@ -506,5 +504,11 @@ int main(int argc, char **argv) {
   auto host = rpchostport.substr(0, colon);
   auto port = stoi(rpchostport.substr(colon + 1));
 
-  return esi_test::run_cosim_test(host, port);
+  auto res = esi_test::run_cosim_test(host, port);
+  if (res != 0) {
+    std::cerr << "Test failed with error code " << res << std::endl;
+    return 1;
+  }
+  std::cout << "Test passed" << std::endl;
+  return 0;
 }

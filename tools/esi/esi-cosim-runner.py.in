@@ -33,6 +33,7 @@ class CosimTestRunner:
     """Parse a test file. Look for comments we recognize anywhere in the
         file. Assemble a list of sources."""
 
+    self.server_only = server_only
     self.args = addlArgs
     self.file = testFile
     self.interactive = interactive
