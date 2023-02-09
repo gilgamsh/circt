@@ -4,6 +4,8 @@ project(esi_ram_test)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# TODO: most of this stuff should be moved to a .cmake file that is included.
+
 # Assert that CIRCT_DIR is defined.
 if(NOT DEFINED CIRCT_DIR)
   message(FATAL_ERROR "CIRCT_DIR must be defined.")
@@ -46,4 +48,11 @@ target_include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CAPNP_INCLUDE_DIRS}
+    ${CIRCT_DIR}/include
+)
+
+target_compile_definitions(
+    esi_ram_test
+    PUBLIC
+    -DESI_COSIM_CAPNP_H=\"${CMAKE_CURRENT_BINARY_DIR}/hw/schema.capnp.h\"
 )

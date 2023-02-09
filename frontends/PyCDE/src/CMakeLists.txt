@@ -41,6 +41,7 @@ declare_mlir_python_sources(PyCDESources
   testing.py
 
   esi_api.py.j2
+  esi_api.h.j2
   Makefile.cosim
 
   bsp/__init__.py

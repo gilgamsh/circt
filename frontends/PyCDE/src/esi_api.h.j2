@@ -1,0 +1,122 @@
+{# This template is not generated. #}
+#pragma once
+
+#include <cstdint>
+
+// Generated ESI CPP runtime API.
+
+// Assert that an ESI_COSIM_CAPNP_H variable is defined. This is the capnp
+// header file generated from the ESI schema, containing definitions for e.g.
+// CosimDpiServer, ...
+#ifndef ESI_COSIM_CAPNP_H
+  #error "ESI_COSIM_CAPNP_H must be defined to include this file"
+#endif
+
+#include ESI_COSIM_CAPNP_H
+
+namespace esi_runtime {
+
+// Module types
+class ESITypes {
+public:
+  {% for type_name, type_dict in types.items() -%}
+  struct {{type_name}} {
+    {%- set cpp_type = get_cpp_type(type_name, type_dict) -%}
+    {#- TODO: nested struct types #}
+    // Data members
+    {% for field in cpp_type.fields -%}
+    {{field.type}} {{field.name}};
+    {% endfor -%}
+
+    {% if cpp_type.is_unary() %}
+    // Unary type convenience conversion operator.
+    operator {{ cpp_type.unary_field().type }}() const { return {{ cpp_type.unary_field().name }}; }
+    {% endif %}
+    // Spaceship operator for comparisons.
+    auto operator<=>(const {{type_name}}&) const = default;
+
+    // Cap'n'proto compatability methods.
+    using CPType = ::{{type_dict["capnp_name"]}};
+
+    void fillCapnp(CPType::Builder cp) { cp.setI(i); }
+    static {{type_name}} fromCapnp(CPType::Reader msg) {
+      {{type_name}} ret;
+      {% for field in cpp_type.fields -%}
+      ret.{{field.name}} = msg.get{{field.name|capitalize}}();
+      {% endfor -%}
+      return ret;
+    }
+  };
+
+  {% endfor %}
+};
+
+
+{%- for svc in services.declarations %}
+template <typename TBackend>
+class {{svc.name}} : public ::circt::esi::runtime::Module<TBackend> {
+  using Port = ::circt::esi::runtime::Port<TBackend>;
+
+public:
+  // Port type declarations
+  {%- for port in svc.ports %}
+  {% set cpp_port = get_cpp_port(port) %}
+  using T{{cpp_port.name}} = {{cpp_port.type}};
+  using {{cpp_port.name}}Ptr = std::shared_ptr<T{{cpp_port.name}}>;
+  T{{cpp_port.name}}Ptr {{cpp_port.name}};
+  {%- endfor %}
+
+  // Constructor 
+  {{svc.name}}(
+    {%- for port in svc.ports %}
+      {%- set cpp_port = get_cpp_port(port) %}
+      {{cpp_port.name}}Ptr {{cpp_port.name}}
+      {%- if not loop.last %}, {% endif %}
+    {%- endfor %}
+  ) : 
+    {%- for port in svc.ports %}
+      {%- set cpp_port = get_cpp_port(port) %}
+      {{cpp_port.name}}({{cpp_port.name}})
+      {%- if not loop.last %}, {% endif %}
+    {%- endfor %}
+  {}
+};
+
+{%- endfor %}
+
+
+{% for mod in modules %}
+template<typename TBackend>
+class {{mod.name}} {
+  {{mod.name}}(TBackend& backend)  {
+    {%- for svc in mod.services %}
+    {
+      {%- set ports = get_ports_for_clients(svc.clients) -%}
+      // Service ports
+      {%- for port_name, port_clients in ports.items() %}
+        {% for pc in port_clients -%}
+          auto {{port_name}} = std::make_shared<CPP type>({{pc.client_name}}, backend, "{{svc.impl_type}}");
+        {% endfor %}
+      {%- endfor %}
+
+      // Service instantiation
+      {{svc.service|lower}} = std::make_unique<{{svc.service}}<TBackend>>(
+      {%- for port_name, port_clients in ports.items() %}
+        {{port_name}}
+        {%- if not loop.last %}, {% endif %}
+      {%- endfor %}
+      );
+      {{svc.service|lower}}->init(backend);
+    }
+    {%- endfor %}
+  }
+
+  // Services
+  {%- for svc in mod.services %}
+  std::unique_ptr<{{svc.service}}<TBackend>> {{svc.service|lower}};
+  {%- endfor %}
+};
+{% endfor %}
+
+
+}  // namespace esi_runtime

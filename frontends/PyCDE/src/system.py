@@ -15,7 +15,7 @@ from .types import TypeAlias
 from . import circt
 from .circt import ir, passmanager
 from .circt.dialects import esi, hw, msft
-from .esi_api import PythonApiBuilder
+from .esi_api import PythonApiBuilder, CPPApiBuilder
 
 from contextvars import ContextVar
 from collections.abc import Iterable
@@ -341,21 +341,26 @@ class System:
 
     sw_api_langs = self.sw_api_langs
     if sw_api_langs is None:
-      sw_api_langs = ["python"]
+      sw_api_langs = ["python", "cpp"]
+
+    services_file = (self.hw_output_dir / "services.json")
+    if not services_file.exists():
+      raise FileNotFoundError("Could not locate ESI services description. " +
+                              "Have you emitted the outputs?")
+
+    api_output_dir = self.output_directory / "runtime"
+    if not api_output_dir.exists():
+      api_output_dir.mkdir()
 
     for lang in sw_api_langs:
-      if lang != "python":
+      if lang not in ["python", "cpp"]:
         raise ValueError(f"Language '{lang}' not supported")
-
-      services_file = (self.hw_output_dir / "services.json")
-      if not services_file.exists():
-        raise FileNotFoundError("Could not locate ESI services description. " +
-                                "Have you emitted the outputs?")
-
-      api_output_dir = self.output_directory / "runtime"
-      if not api_output_dir.exists():
-        api_output_dir.mkdir()
-      b = PythonApiBuilder(services_file.open().read())
+      
+      if lang == "cpp":
+        b = CPPApiBuilder(services_file.open().read())
+      else:
+        b = PythonApiBuilder(services_file.open().read())
+      
       b.build(self.name, api_output_dir)
 
   def package(self):
