@@ -2463,9 +2463,6 @@ LogicalResult ConstantOp::verify() {
   if (attrType.isSignless() || attrType.isSigned() != getType().isSigned())
     return emitError("firrtl.constant attribute has wrong sign");
 
-  if (!intType.isConst())
-    return emitError("firrtl.constant result must be 'const'");
-
   return success();
 }
 
