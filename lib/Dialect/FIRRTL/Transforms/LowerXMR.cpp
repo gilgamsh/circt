@@ -244,11 +244,17 @@ class LowerXMRPass : public LowerXMRBase<LowerXMRPass> {
     if (resWidth.has_value() && *resWidth == 0) {
       // Donot emit 0 width XMRs, replace it with constant 0.
       ImplicitLocOpBuilder builder(resolve.getLoc(), resolve);
-      auto zeroUintType = UIntType::get(builder.getContext(), 0);
-      auto zeroC = builder.createOrFold<BitCastOp>(
-          resolve.getType(), builder.create<ConstantOp>(
-                                 zeroUintType, getIntZerosAttr(zeroUintType)));
-      resolve.getResult().replaceAllUsesWith(zeroC);
+      auto zeroUintType = UIntType::get(builder.getContext(), 0, true);
+      auto zeroC = builder.create<ConstantOp>(zeroUintType,
+                                              getIntZerosAttr(zeroUintType));
+      Value result;
+      // If the ref resolve is a UInt<0>, no bitcast is necessary
+      if (auto uintType = resolve.getType().dyn_cast<UIntType>();
+          uintType && uintType.getWidthOrSentinel() == 0)
+        result = zeroC.getResult();
+      else
+        result = builder.createOrFold<BitCastOp>(resolve.getType(), zeroC);
+      resolve.getResult().replaceAllUsesWith(result);
       return success();
     }
     auto remoteOpPath = getRemoteRefSend(resolve.getRef());

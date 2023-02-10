@@ -41,8 +41,20 @@ def GetDroppableNameAttr : NativeCodeCall<
 def NonEmptyAttr : Constraint<CPred<"!$0.getValue().empty()">>;
 def NullAttr : Constraint<CPred<"!$0">>;
 
-// Constraint that enforces equal types
-def EqualTypes : Constraint<CPred<"$0.getType() == $1.getType()">>;
+// Constraint that enforces types are equal except for constness
+def MixedConstTypes : Constraint<CPred<[{
+  $0.getType() == $1.getType() || 
+  ($0.getType().isa<FIRRTLBaseType>() && $1.getType().isa<FIRRTLBaseType>() &&
+   $0.getType().cast<FIRRTLBaseType>().getConstType(false) == $1.getType().cast<FIRRTLBaseType>().getConstType(false))
+}]>>;
+
+// Constraint that enforces types are equal except the right-hand type
+// can be const 
+def ConnectableTypes : Constraint<CPred<[{
+  $0.getType() == $1.getType() || 
+  ($1.getType().isa<FIRRTLBaseType>() && 
+   $1.getType().cast<FIRRTLBaseType>().getConstType(false) == $0.getType())
+}]>>;
 
 // Constraint that enforces int types
 def IntTypes : Constraint<CPred<"$0.isa<IntType>()">>;
@@ -53,8 +65,11 @@ def SIntTypes : Constraint<CPred<"$0.isa<SIntType>()">>;
 // Constraint that enforces uint types
 def UIntTypes : Constraint<CPred<"$0.isa<UIntType>()">>;
 
-// Constraint that enforces types mismatches
-def mismatchTypes : Constraint<CPred<"$0.getType() != $1.getType()">>;
+// Constraint that enforces type width mismatches
+def MismatchWidth : Constraint<CPred<[{
+  !$0.getType().isa<FIRRTLBaseType>() || !$1.getType().isa<FIRRTLBaseType>() ||
+  $0.getType().cast<FIRRTLBaseType>().getBitWidthOrSentinel() != $1.getType().cast<FIRRTLBaseType>().getBitWidthOrSentinel()
+}]>>;
 
 // Constraint that enforces types of known width
 def KnownWidth : Constraint<CPred<[{
@@ -117,14 +132,14 @@ def GTWithConstLHS : Pat<
 def ConnectSameType : Pat<
   (ConnectOp $dst, $src),
   (StrictConnectOp $dst, $src),
-  [(EqualTypes $dst, $src), (KnownWidth $dst)]>;
+  [(ConnectableTypes $dst, $src), (KnownWidth $dst)]>;
 
 // connect(a:t1,b:(t2<t1) -> strictconnect(a,(pad b))
 def ConnectExtension : Pat<
   (ConnectOp $dst, $src),
   (StrictConnectOp $dst, (PadPrimOp $src,
     (NativeCodeCall<"$0.getType().cast<FIRRTLBaseType>().getBitWidthOrSentinel()"> $dst))),
-  [(IntType $dst), (IntType $src), (KnownWidth $dst), (KnownWidth $src), (mismatchTypes $src, $dst)]>;
+  [(IntType $dst), (IntType $src), (KnownWidth $dst), (KnownWidth $src), (MismatchWidth $src, $dst)]>;
 
 def LimitConstant32 : NativeCodeCall<
   "$_builder.getI32IntegerAttr($0.getValue().getLimitedValue(1ULL << 31))">;
@@ -152,19 +167,19 @@ def extendAnd : Pat <
   (AndPrimOp:$old $lhs, $rhs),
   (MoveNameHint $old, (AndPrimOp (PadPrimOp $lhs, (TypeWidth32 $old)),
                                  (PadPrimOp $rhs, (TypeWidth32 $old)))),
-  [(KnownWidth $lhs), (KnownWidth $rhs), (mismatchTypes $lhs, $rhs)]>;
+  [(KnownWidth $lhs), (KnownWidth $rhs), (MismatchWidth $lhs, $rhs)]>;
 
 def extendOr : Pat <
   (OrPrimOp:$old $lhs, $rhs),
   (MoveNameHint $old, (OrPrimOp (PadPrimOp $lhs, (TypeWidth32 $old)),
                                 (PadPrimOp $rhs, (TypeWidth32 $old)))),
-  [(KnownWidth $lhs), (KnownWidth $rhs), (mismatchTypes $lhs, $rhs)]>;
+  [(KnownWidth $lhs), (KnownWidth $rhs), (MismatchWidth $lhs, $rhs)]>;
 
 def extendXor : Pat <
   (XorPrimOp:$old $lhs, $rhs),
   (MoveNameHint $old, (XorPrimOp (PadPrimOp $lhs, (TypeWidth32 $old)),
                                  (PadPrimOp $rhs, (TypeWidth32 $old)))),
-  [(KnownWidth $lhs), (KnownWidth $rhs), (mismatchTypes $lhs, $rhs)]>;
+  [(KnownWidth $lhs), (KnownWidth $rhs), (MismatchWidth $lhs, $rhs)]>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Move constants to the right
@@ -240,7 +255,7 @@ def AndOfZero : Pat <
 def AndOfAllOne : Pat <
   (AndPrimOp:$old $x, (ConstantOp:$ocst $cst)),
   (MoveNameHint $old, (AsUIntPrimOp (PadPrimOp $x, (TypeWidth32 $old)))),
-  [(KnownWidth $x), (EqualTypes $x, $ocst), (AllOneConstantOp $ocst)]>;
+  [(KnownWidth $x), (MixedConstTypes $x, $ocst), (AllOneConstantOp $ocst)]>;
 
 /// and(x,x) -> x, fold can't handle all cases
 def AndOfSelf : Pat <
@@ -257,8 +272,8 @@ def OrOfZero : Pat <
 // or(x, -1) -> -1, fold can't handle all cases
 def OrOfAllOne : Pat <
   (OrPrimOp:$old $x, (ConstantOp:$ocst $cst)),
-  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>(), getIntOnesAttr($0.getType()))"> $old),
-  [(KnownWidth $x), (EqualTypes $x, $ocst), (AllOneConstantOp $ocst)]>;
+  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>().getConstType(true), getIntOnesAttr($0.getType()))"> $old),
+  [(KnownWidth $x), (MixedConstTypes $x, $ocst), (AllOneConstantOp $ocst)]>;
 
 /// or(x,x) -> x, fold can't handle all cases
 def OrOfSelf : Pat <
@@ -305,39 +320,39 @@ def MuxNot : Pat<
 def MuxSameCondLow : Pat<
   (MuxPrimOp:$old $cond, $x, (MuxPrimOp $cond, $y, $z)),
   (MoveNameHint $old, (MuxPrimOp $cond, $x, $z)), [
-    (EqualTypes $x, $y), (EqualTypes $x, $z), (KnownWidth $x)
+    (MixedConstTypes $x, $y), (MixedConstTypes $x, $z), (KnownWidth $x)
   ]>;
 
 // mux(cond, mux(cond, y, z), x) -> mux(cond, y, x)
 def MuxSameCondHigh : Pat<
   (MuxPrimOp:$old $cond, (MuxPrimOp $cond, $y, $z), $x),
   (MoveNameHint $old, (MuxPrimOp $cond, $y, $x)), [
-    (EqualTypes $x, $y), (EqualTypes $x, $z), (KnownWidth $x)
+    (MixedConstTypes $x, $y), (MixedConstTypes $x, $z), (KnownWidth $x)
   ]>;
 
 // mux(cond1, t, mux(cond2, t ,f)) -> mux(or(cond1, cond2), t, f)
 def MuxSameTrue : Pat <
   (MuxPrimOp:$old $cond1, $t, (MuxPrimOp $cond2, $t, $f)),
   (MoveNameHint $old, (MuxPrimOp (OrPrimOp $cond1, $cond2), $t, $f)),
-  [(EqualTypes $t, $f), (KnownWidth $t)]>;
+  [(MixedConstTypes $t, $f), (KnownWidth $t)]>;
 
 // mux(cond1, mux(cond2, t, f), f) -> mux(and(cond1, cond2), t, f)
 def MuxSameFalse : Pat <
   (MuxPrimOp:$old $cond1, (MuxPrimOp $cond2, $t, $f), $f),
   (MoveNameHint $old, (MuxPrimOp (AndPrimOp $cond1, $cond2), $t, $f)),
-  [(EqualTypes $t, $f), (KnownWidth $f)]>;
+  [(MixedConstTypes $t, $f), (KnownWidth $f)]>;
 
 // mux(cond, (Concat a, b), (Concat a, c)) -> Concat(a, mux(cond, b, c))
 def NarrowMuxLHS : Pat <
   (MuxPrimOp:$old $cond, (CatPrimOp:$lhs $a, $b), (CatPrimOp:$rhs $a, $c)),
   (MoveNameHint $old, (CatPrimOp $a, (MuxPrimOp $cond, $b, $c))),
-  [(EqualTypes $lhs, $rhs), (KnownWidth $lhs)]>;
+  [(MixedConstTypes $lhs, $rhs), (KnownWidth $lhs)]>;
 
 // mux(cond, (Concat a, b), (Concat c, b)) -> Concat(mux(cond, a, c), b)
 def NarrowMuxRHS : Pat <
   (MuxPrimOp:$old $cond, (CatPrimOp:$lhs $a, $b), (CatPrimOp:$rhs $c, $b)),
   (MoveNameHint $old, (CatPrimOp (MuxPrimOp $cond, $a, $c), $b)),
-  [(EqualTypes $lhs, $rhs), (KnownWidth $lhs)]>;
+  [(MixedConstTypes $lhs, $rhs), (KnownWidth $lhs)]>;
 
 // regreset(clock, constant_zero, resetValue) -> reg(clock)
 def RegResetWithZeroReset : Pat<

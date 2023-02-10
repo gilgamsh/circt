@@ -805,6 +805,8 @@ void IMConstPropPass::rewriteModuleBody(FModuleOp module) {
         getConst(it->second.getValue(), value.getType(), value.getLoc());
 
     replaceIfNotConnect(cstValue);
+    if (failed(propogateConstToUsersOf(cstValue)))
+      signalPassFailure();
     return true;
   };
 

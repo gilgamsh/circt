@@ -115,8 +115,8 @@ static Value createZeroValue(ImplicitLocOpBuilder &builder, FIRRTLBaseType type,
   if (it != cache.end())
     return it->second;
   auto nullBit = [&]() {
-    return createZeroValue(builder, UIntType::get(builder.getContext(), 1),
-                           cache);
+    return createZeroValue(builder,
+                           UIntType::get(builder.getContext(), 1, true), cache);
   };
   auto value =
       TypeSwitch<FIRRTLBaseType, Value>(type)
@@ -1715,7 +1715,7 @@ void InferResetsPass::implementAsyncReset(Operation *op, FModuleOp module,
       return;
 
     LLVM_DEBUG(llvm::dbgs() << "- Adding async reset to " << regOp << "\n");
-    auto zero = createZeroValue(builder, regOp.getType());
+    auto zero = createZeroValue(builder, regOp.getType().getConstType(true));
     auto newRegOp = builder.create<RegResetOp>(
         regOp.getType(), regOp.getClockVal(), actualReset, zero,
         regOp.getNameAttr(), regOp.getNameKindAttr(), regOp.getAnnotations(),
@@ -1752,7 +1752,7 @@ void InferResetsPass::implementAsyncReset(Operation *op, FModuleOp module,
 
     // Replace the existing reset with the async reset.
     builder.setInsertionPoint(regOp);
-    auto zero = createZeroValue(builder, regOp.getType());
+    auto zero = createZeroValue(builder, regOp.getType().getConstType(true));
     regOp.getResetSignalMutable().assign(actualReset);
     regOp.getResetValueMutable().assign(zero);
   }

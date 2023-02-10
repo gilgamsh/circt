@@ -1691,7 +1691,7 @@ ParseResult FIRStmtParser::parseIntegerLiteralExp(Value &result) {
     return failure();
 
   // Construct an integer attribute of the right width.
-  auto type = IntType::get(builder.getContext(), isSigned, width);
+  auto type = IntType::get(builder.getContext(), isSigned, width, true);
 
   IntegerType::SignednessSemantics signedness =
       isSigned ? IntegerType::Signed : IntegerType::Unsigned;

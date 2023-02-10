@@ -55,6 +55,11 @@ static Value moveNameHint(OpResult old, Value passthrough) {
   return passthrough;
 }
 
+// Returns true if the provided types are equal except for constness
+static bool mixedConstTypes(FIRRTLBaseType a, FIRRTLBaseType b) {
+  return a == b || (a.getConstType(false) == b.getConstType(false));
+}
+
 // Declarative canonicalization patterns
 namespace circt {
 namespace firrtl {
@@ -316,7 +321,8 @@ static LogicalResult canonicalizePrimOp(
   else if (type.isa<UIntType>() && resultValue.getType().isa<SIntType>())
     resultValue = rewriter.create<AsUIntPrimOp>(op->getLoc(), resultValue);
 
-  assert(type == resultValue.getType() && "canonicalization changed type");
+  assert(mixedConstTypes(type, resultValue.getType().cast<FIRRTLBaseType>()) &&
+         "canonicalization changed type");
   replaceOpAndCopyName(rewriter, op, resultValue);
   return success();
 }
@@ -433,7 +439,8 @@ OpFoldResult DivPrimOp::fold(FoldAdaptor adaptor) {
   /// be folded here because it increases the return type bitwidth by
   /// one and requires sign extension (a new op).
   if (auto rhsCst = adaptor.getRhs().dyn_cast_or_null<IntegerAttr>())
-    if (rhsCst.getValue().isOne() && getLhs().getType() == getType())
+    if (rhsCst.getValue().isOne() &&
+        mixedConstTypes(getLhs().getType(), getType()))
       return getLhs();
 
   return constFoldFIRRTLBinaryOp(
@@ -502,8 +509,8 @@ OpFoldResult AndPrimOp::fold(FoldAdaptor adaptor) {
       return getIntZerosAttr(getType());
 
     /// and(x, -1) -> x
-    if (rhsCst->isAllOnes() && getLhs().getType() == getType() &&
-        getRhs().getType() == getType())
+    if (rhsCst->isAllOnes() && mixedConstTypes(getLhs().getType(), getType()) &&
+        mixedConstTypes(getRhs().getType(), getType()))
       return getLhs();
   }
 
@@ -513,13 +520,13 @@ OpFoldResult AndPrimOp::fold(FoldAdaptor adaptor) {
       return getIntZerosAttr(getType());
 
     /// and(-1, x) -> x
-    if (lhsCst->isAllOnes() && getLhs().getType() == getType() &&
-        getRhs().getType() == getType())
+    if (lhsCst->isAllOnes() && mixedConstTypes(getLhs().getType(), getType()) &&
+        mixedConstTypes(getRhs().getType(), getType()))
       return getRhs();
   }
 
   /// and(x, x) -> x
-  if (getLhs() == getRhs() && getRhs().getType() == getType())
+  if (getLhs() == getRhs() && mixedConstTypes(getRhs().getType(), getType()))
     return getRhs();
 
   return constFoldFIRRTLBinaryOp(
@@ -537,28 +544,28 @@ void AndPrimOp::getCanonicalizationPatterns(RewritePatternSet &results,
 OpFoldResult OrPrimOp::fold(FoldAdaptor adaptor) {
   if (auto rhsCst = getConstant(adaptor.getRhs())) {
     /// or(x, 0) -> x
-    if (rhsCst->isZero() && getLhs().getType() == getType())
+    if (rhsCst->isZero() && mixedConstTypes(getLhs().getType(), getType()))
       return getLhs();
 
     /// or(x, -1) -> -1
-    if (rhsCst->isAllOnes() && getRhs().getType() == getType() &&
-        getLhs().getType() == getType())
+    if (rhsCst->isAllOnes() && mixedConstTypes(getRhs().getType(), getType()) &&
+        mixedConstTypes(getLhs().getType(), getType()))
       return getRhs();
   }
 
   if (auto lhsCst = getConstant(adaptor.getLhs())) {
     /// or(0, x) -> x
-    if (lhsCst->isZero() && getRhs().getType() == getType())
+    if (lhsCst->isZero() && mixedConstTypes(getRhs().getType(), getType()))
       return getRhs();
 
     /// or(-1, x) -> -1
-    if (lhsCst->isAllOnes() && getLhs().getType() == getType() &&
-        getRhs().getType() == getType())
+    if (lhsCst->isAllOnes() && mixedConstTypes(getLhs().getType(), getType()) &&
+        mixedConstTypes(getRhs().getType(), getType()))
       return getLhs();
   }
 
   /// or(x, x) -> x
-  if (getLhs() == getRhs() && getRhs().getType() == getType())
+  if (getLhs() == getRhs() && mixedConstTypes(getRhs().getType(), getType()))
     return getRhs();
 
   return constFoldFIRRTLBinaryOp(
@@ -575,12 +582,12 @@ void OrPrimOp::getCanonicalizationPatterns(RewritePatternSet &results,
 OpFoldResult XorPrimOp::fold(FoldAdaptor adaptor) {
   /// xor(x, 0) -> x
   if (auto rhsCst = getConstant(adaptor.getRhs()))
-    if (rhsCst->isZero() && getLhs().getType() == getType())
+    if (rhsCst->isZero() && mixedConstTypes(getLhs().getType(), getType()))
       return getLhs();
 
   /// xor(x, 0) -> x
   if (auto lhsCst = getConstant(adaptor.getLhs()))
-    if (lhsCst->isZero() && getRhs().getType() == getType())
+    if (lhsCst->isZero() && mixedConstTypes(getRhs().getType(), getType()))
       return getRhs();
 
   /// xor(x, x) -> 0
@@ -799,8 +806,8 @@ OpFoldResult EQPrimOp::fold(FoldAdaptor adaptor) {
   if (auto rhsCst = getConstant(adaptor.getRhs())) {
     /// eq(x, 1) -> x when x is 1 bit.
     /// TODO: Support SInt<1> on the LHS etc.
-    if (rhsCst->isAllOnes() && getLhs().getType() == getType() &&
-        getRhs().getType() == getType())
+    if (rhsCst->isAllOnes() && mixedConstTypes(getLhs().getType(), getType()) &&
+        mixedConstTypes(getRhs().getType(), getType()))
       return getLhs();
   }
 
@@ -819,8 +826,9 @@ LogicalResult EQPrimOp::canonicalize(EQPrimOp op, PatternRewriter &rewriter) {
               op.getLhs().getType().cast<IntType>().getBitWidthOrSentinel();
 
           // eq(x, 0) ->  not(x) when x is 1 bit.
-          if (rhsCst->isZero() && op.getLhs().getType() == op.getType() &&
-              op.getRhs().getType() == op.getType()) {
+          if (rhsCst->isZero() &&
+              mixedConstTypes(op.getLhs().getType(), op.getType()) &&
+              mixedConstTypes(op.getRhs().getType(), op.getType())) {
             return rewriter.create<NotPrimOp>(op.getLoc(), op.getLhs())
                 .getResult();
           }
@@ -833,7 +841,7 @@ LogicalResult EQPrimOp::canonicalize(EQPrimOp op, PatternRewriter &rewriter) {
 
           // eq(x, ~0) -> andr(x) when x is >1 bit
           if (rhsCst->isAllOnes() && width > 1 &&
-              op.getLhs().getType() == op.getRhs().getType()) {
+              mixedConstTypes(op.getLhs().getType(), op.getRhs().getType())) {
             return rewriter.create<AndRPrimOp>(op.getLoc(), op.getLhs())
                 .getResult();
           }
@@ -851,8 +859,8 @@ OpFoldResult NEQPrimOp::fold(FoldAdaptor adaptor) {
   if (auto rhsCst = getConstant(adaptor.getRhs())) {
     /// neq(x, 0) -> x when x is 1 bit.
     /// TODO: Support SInt<1> on the LHS etc.
-    if (rhsCst->isZero() && getLhs().getType() == getType() &&
-        getRhs().getType() == getType())
+    if (rhsCst->isZero() && mixedConstTypes(getLhs().getType(), getType()) &&
+        mixedConstTypes(getRhs().getType(), getType()))
       return getLhs();
   }
 
@@ -871,8 +879,9 @@ LogicalResult NEQPrimOp::canonicalize(NEQPrimOp op, PatternRewriter &rewriter) {
               op.getLhs().getType().cast<IntType>().getBitWidthOrSentinel();
 
           // neq(x, 1) -> not(x) when x is 1 bit
-          if (rhsCst->isAllOnes() && op.getLhs().getType() == op.getType() &&
-              op.getRhs().getType() == op.getType()) {
+          if (rhsCst->isAllOnes() &&
+              mixedConstTypes(op.getLhs().getType(), op.getType()) &&
+              mixedConstTypes(op.getRhs().getType(), op.getType())) {
             return rewriter.create<NotPrimOp>(op.getLoc(), op.getLhs())
                 .getResult();
           }
@@ -885,7 +894,7 @@ LogicalResult NEQPrimOp::canonicalize(NEQPrimOp op, PatternRewriter &rewriter) {
 
           // neq(x, ~0) -> not(andr(x))) when x is >1 bit
           if (rhsCst->isAllOnes() && width > 1 &&
-              op.getLhs().getType() == op.getRhs().getType()) {
+              mixedConstTypes(op.getLhs().getType(), op.getRhs().getType())) {
             auto andrOp = rewriter.create<AndRPrimOp>(op.getLoc(), op.getLhs());
             return rewriter.create<NotPrimOp>(op.getLoc(), andrOp).getResult();
           }
@@ -916,7 +925,7 @@ OpFoldResult IsXIntrinsicOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult AsSIntPrimOp::fold(FoldAdaptor adaptor) {
   // No effect.
-  if (getInput().getType() == getType())
+  if (mixedConstTypes(getInput().getType(), getType()))
     return getInput();
 
   // Be careful to only fold the cast into the constant if the size is known.
@@ -931,7 +940,7 @@ OpFoldResult AsSIntPrimOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult AsUIntPrimOp::fold(FoldAdaptor adaptor) {
   // No effect.
-  if (getInput().getType() == getType())
+  if (mixedConstTypes(getInput().getType(), getType()))
     return getInput();
 
   // Be careful to only fold the cast into the constant if the size is known.
@@ -946,7 +955,7 @@ OpFoldResult AsUIntPrimOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult AsAsyncResetPrimOp::fold(FoldAdaptor adaptor) {
   // No effect.
-  if (getInput().getType() == getType())
+  if (mixedConstTypes(getInput().getType(), getType()))
     return getInput();
 
   // Constant fold.
@@ -958,7 +967,7 @@ OpFoldResult AsAsyncResetPrimOp::fold(FoldAdaptor adaptor) {
 
 OpFoldResult AsClockPrimOp::fold(FoldAdaptor adaptor) {
   // No effect.
-  if (getInput().getType() == getType())
+  if (mixedConstTypes(getInput().getType(), getType()))
     return getInput();
 
   // Constant fold.
@@ -1069,11 +1078,15 @@ OpFoldResult CatPrimOp::fold(FoldAdaptor adaptor) {
   // cat(0-width, x) -> x
   // Limit to unsigned (result type), as cannot insert cast here.
   if (getLhs().getType().getBitWidthOrSentinel() == 0 &&
-      getRhs().getType().isUnsigned())
+      getRhs().getType().isUnsigned()) {
+    getResult().setType(getRhs().getType().cast<UIntType>());
     return getRhs();
+  }
   if (getRhs().getType().getBitWidthOrSentinel() == 0 &&
-      getLhs().getType().isUnsigned())
+      getLhs().getType().isUnsigned()) {
+    getResult().setType(getLhs().getType().cast<UIntType>());
     return getLhs();
+  }
 
   if (!hasKnownWidthIntTypes(*this))
     return {};
@@ -1131,13 +1144,13 @@ void CatPrimOp::getCanonicalizationPatterns(RewritePatternSet &results,
 OpFoldResult BitCastOp::fold(FoldAdaptor adaptor) {
   auto op = (*this);
   // BitCast is redundant if input and result types are same.
-  if (op.getType() == op.getInput().getType())
+  if (mixedConstTypes(op.getType(), op.getInput().getType()))
     return op.getInput();
 
   // Two consecutive BitCasts are redundant if first bitcast type is same as the
   // final result type.
   if (BitCastOp in = dyn_cast_or_null<BitCastOp>(op.getInput().getDefiningOp()))
-    if (op.getType() == in.getInput().getType())
+    if (mixedConstTypes(op.getType(), in.getInput().getType()))
       return in.getInput();
 
   return {};
@@ -1182,6 +1195,10 @@ static void replaceWithBits(Operation *op, Value value, unsigned hiBit,
 }
 
 OpFoldResult MuxPrimOp::fold(FoldAdaptor adaptor) {
+  auto foldValue = [&](auto value) {
+    getResult().setType(value.getType());
+    return value;
+  };
 
   // mux : UInt<0> -> 0
   if (getType().getBitWidthOrSentinel() == 0)
@@ -1189,7 +1206,7 @@ OpFoldResult MuxPrimOp::fold(FoldAdaptor adaptor) {
 
   // mux(cond, x, x) -> x
   if (getHigh() == getLow())
-    return getHigh();
+    return foldValue(getHigh());
 
   // The following folds require that the result has a known width. Otherwise
   // the mux requires an additional padding operation to be inserted, which is
@@ -1199,10 +1216,10 @@ OpFoldResult MuxPrimOp::fold(FoldAdaptor adaptor) {
 
   // mux(0/1, x, y) -> x or y
   if (auto cond = getConstant(adaptor.getSel())) {
-    if (cond->isZero() && getLow().getType() == getType())
-      return getLow();
-    if (!cond->isZero() && getHigh().getType() == getType())
-      return getHigh();
+    if (cond->isZero() && mixedConstTypes(getLow().getType(), getType()))
+      return foldValue(getLow());
+    if (!cond->isZero() && mixedConstTypes(getHigh().getType(), getType()))
+      return foldValue(getHigh());
   }
 
   // mux(cond, x, cst)
@@ -1215,8 +1232,8 @@ OpFoldResult MuxPrimOp::fold(FoldAdaptor adaptor) {
         return getIntAttr(getType(), *highCst);
       // mux(cond, 1, 0) -> cond
       if (highCst->isOne() && lowCst->isZero() &&
-          getType() == getSel().getType())
-        return getSel();
+          mixedConstTypes(getType(), getSel().getType()))
+        return foldValue(getSel());
 
       // TODO: x ? ~0 : 0 -> sext(x)
       // TODO: "x ? c1 : c2" -> many tricks
@@ -1282,7 +1299,7 @@ OpFoldResult PadPrimOp::fold(FoldAdaptor adaptor) {
   auto input = this->getInput();
 
   // pad(x) -> x  if the width doesn't change.
-  if (input.getType() == getType())
+  if (mixedConstTypes(input.getType(), getType()))
     return input;
 
   // Need to know the input width.
@@ -1589,12 +1606,19 @@ static LogicalResult canonicalizeSingleSetConnect(StrictConnectOp op,
     }
   }
 
+  bool shouldPropogateConst = isConst(replacement.getType()) &&
+                              replacement.getType() != op.getDest().getType();
+
   // Replace all things *using* the decl with the constant/port, and
   // remove the declaration.
   replaceOpAndCopyName(rewriter, connectedDecl, replacement);
 
   // Remove the connect
   rewriter.eraseOp(op);
+
+  // Update any users who might infer const result types
+  if (shouldPropogateConst)
+    return propogateConstToUsersOf(replacement);
   return success();
 }
 
@@ -1723,12 +1747,17 @@ struct NodeBypass : public mlir::RewritePattern {
 
 // Interesting names and symbols and don't touch force nodes to stick around.
 OpFoldResult NodeOp::fold(FoldAdaptor adaptor) {
+  auto noFoldUpdatingTypeIfNeeded = [&] {
+    if (adaptor.getInput())
+      getResult().setType(getType().getConstType(true));
+    return OpFoldResult{};
+  };
   if (!hasDroppableName())
-    return {};
+    return noFoldUpdatingTypeIfNeeded();
   if (hasDontTouch(getResult())) // handles inner symbols
-    return {};
+    return noFoldUpdatingTypeIfNeeded();
   if (getAnnotationsAttr() && !getAnnotationsAttr().empty())
-    return {};
+    return noFoldUpdatingTypeIfNeeded();
   return adaptor.getInput();
 }
 
@@ -1926,8 +1955,12 @@ struct FoldResetMux : public mlir::RewritePattern {
 
     // Check all types should be typed by now
     auto regTy = reg.getType();
-    if (con.getDest().getType() != regTy || con.getSrc().getType() != regTy ||
-        mux.getHigh().getType() != regTy || mux.getLow().getType() != regTy ||
+    if (!mixedConstTypes(con.getDest().getType().cast<FIRRTLBaseType>(),
+                         regTy) ||
+        !mixedConstTypes(con.getSrc().getType().cast<FIRRTLBaseType>(),
+                         regTy) ||
+        !mixedConstTypes(mux.getHigh().getType(), regTy) ||
+        !mixedConstTypes(mux.getLow().getType(), regTy) ||
         regTy.getBitWidthOrSentinel() < 0)
       return failure();
 
@@ -2744,8 +2777,10 @@ static LogicalResult foldHiddenReset(RegOp reg, PatternRewriter &rewriter) {
 
   // Check all types should be typed by now
   auto regTy = reg.getType();
-  if (con.getDest().getType() != regTy || con.getSrc().getType() != regTy ||
-      mux.getHigh().getType() != regTy || mux.getLow().getType() != regTy ||
+  if (!mixedConstTypes(con.getDest().getType().cast<FIRRTLBaseType>(), regTy) ||
+      !mixedConstTypes(con.getSrc().getType().cast<FIRRTLBaseType>(), regTy) ||
+      !mixedConstTypes(mux.getHigh().getType(), regTy) ||
+      !mixedConstTypes(mux.getLow().getType(), regTy) ||
       regTy.getBitWidthOrSentinel() < 0)
     return failure();
 

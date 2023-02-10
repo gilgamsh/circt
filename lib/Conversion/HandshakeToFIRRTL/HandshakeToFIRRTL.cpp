@@ -266,7 +266,8 @@ static Value createConstantOp(FIRRTLBaseType opType, APInt value,
     auto type = builder.getIntegerType(intOpType.getWidthOrSentinel(),
                                        intOpType.isSigned());
     return builder.create<firrtl::ConstantOp>(
-        insertLoc, opType, builder.getIntegerAttr(type, value));
+        insertLoc, opType.getConstType(true),
+        builder.getIntegerAttr(type, value));
   }
 
   return Value();
@@ -546,8 +547,9 @@ static Value createOneHotMuxTree(ArrayRef<Value> inputs, Value select,
     Value selectBit =
         rewriter.create<BitsPrimOp>(insertLoc, select, inputIndex, inputIndex);
 
-    muxValue = rewriter.create<MuxPrimOp>(insertLoc, input.getType(), selectBit,
-                                          input, muxValue);
+    auto muxType = input.getType().cast<FIRRTLBaseType>().getConstType(false);
+    muxValue = rewriter.create<MuxPrimOp>(insertLoc, muxType, selectBit, input,
+                                          muxValue);
   }
 
   return muxValue;
@@ -560,7 +562,7 @@ static Value createDecoder(Value input, Location insertLoc,
   auto *context = rewriter.getContext();
 
   // Get a type for a single unsigned bit.
-  auto bitType = UIntType::get(context, 1);
+  auto bitType = UIntType::get(context, 1, true);
 
   // Create a constant of for one bit.
   auto bit =

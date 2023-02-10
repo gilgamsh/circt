@@ -69,11 +69,14 @@ Operation *FIRRTLDialect::materializeConstant(OpBuilder &builder,
           loc, type,
           builder.getBoolAttr(attrValue.getValue().isAllOnesValue()));
 
-    assert((!type.cast<IntType>().hasWidth() ||
-            (unsigned)type.cast<IntType>().getWidthOrSentinel() ==
+    auto intType = type.cast<IntType>();
+
+    assert((!intType.cast<IntType>().hasWidth() ||
+            (unsigned)intType.getWidthOrSentinel() ==
                 attrValue.getValue().getBitWidth()) &&
            "type/value width mismatch materializing constant");
-    return builder.create<ConstantOp>(loc, type, attrValue);
+    return builder.create<ConstantOp>(loc, intType.getConstType(true),
+                                      attrValue);
   }
 
   // Aggregate constants.
