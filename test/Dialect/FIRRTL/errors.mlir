@@ -171,7 +171,7 @@ firrtl.module @Foo() {
 firrtl.circuit "Foo" {
 firrtl.module @Foo() {
   // expected-error @+1 {{special constants can only be 0 or 1}}
-  firrtl.specialconstant 2 : !firrtl.clock
+  firrtl.specialconstant 2 : !firrtl.const.clock
 }
 }
 
@@ -180,7 +180,7 @@ firrtl.module @Foo() {
 firrtl.circuit "Foo" {
 firrtl.module @Foo() {
   // expected-error @+1 {{special constants can only be 0 or 1}}
-  firrtl.specialconstant 2 : !firrtl.reset
+  firrtl.specialconstant 2 : !firrtl.const.reset
 }
 }
 
@@ -189,7 +189,7 @@ firrtl.module @Foo() {
 firrtl.circuit "Foo" {
 firrtl.module @Foo() {
   // expected-error @+1 {{special constants can only be 0 or 1}}
-  firrtl.specialconstant 2 : !firrtl.asyncreset
+  firrtl.specialconstant 2 : !firrtl.const.asyncreset
 }
 }
 

@@ -20,12 +20,12 @@ firrtl.module @Constants() {
   firrtl.constant 4 : !firrtl.const.uint<8>
   // CHECK: %c-4_si16 = firrtl.constant -4 : !firrtl.const.sint<16>
   firrtl.constant -4 : !firrtl.const.sint<16>
-  // CHECK: %c1_clock = firrtl.specialconstant 1 : !firrtl.clock
-  firrtl.specialconstant 1 : !firrtl.clock
-  // CHECK: %c1_reset = firrtl.specialconstant 1 : !firrtl.reset
-  firrtl.specialconstant 1 : !firrtl.reset
-  // CHECK: %c1_asyncreset = firrtl.specialconstant 1 : !firrtl.asyncreset
-  firrtl.specialconstant 1 : !firrtl.asyncreset
+  // CHECK: %c1_clock = firrtl.specialconstant 1 : !firrtl.const.clock
+  firrtl.specialconstant 1 : !firrtl.const.clock
+  // CHECK: %c1_reset = firrtl.specialconstant 1 : !firrtl.const.reset
+  firrtl.specialconstant 1 : !firrtl.const.reset
+  // CHECK: %c1_asyncreset = firrtl.specialconstant 1 : !firrtl.const.asyncreset
+  firrtl.specialconstant 1 : !firrtl.const.asyncreset
   // CHECK: firrtl.constant 4 : !firrtl.const.uint<8> {name = "test"}
   firrtl.constant 4 : !firrtl.const.uint<8> {name = "test"}
 

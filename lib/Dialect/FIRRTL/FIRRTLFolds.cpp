@@ -1592,7 +1592,8 @@ static LogicalResult canonicalizeSingleSetConnect(StrictConnectOp op,
         return failure();
       if (op.getDest().getType().isa<ClockType, AsyncResetType, ResetType>())
         replacement = rewriter.create<SpecialConstantOp>(
-            op.getSrc().getLoc(), op.getDest().getType(),
+            op.getSrc().getLoc(),
+            op.getDest().getType().cast<FIRRTLBaseType>().getConstType(true),
             rewriter.getBoolAttr(false));
       else
         replacement = rewriter.create<ConstantOp>(
@@ -2055,7 +2056,7 @@ static void erasePort(PatternRewriter &rewriter, Value port) {
   auto getClock = [&] {
     if (!clock)
       clock = rewriter.create<SpecialConstantOp>(
-          port.getLoc(), ClockType::get(rewriter.getContext()), false);
+          port.getLoc(), ClockType::get(rewriter.getContext(), true), false);
     return clock;
   };
 

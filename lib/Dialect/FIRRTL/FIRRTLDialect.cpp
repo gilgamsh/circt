@@ -56,7 +56,8 @@ Operation *FIRRTLDialect::materializeConstant(OpBuilder &builder,
     assert((type.isa<ClockType>() || type.isa<AsyncResetType>() ||
             type.isa<ResetType>()) &&
            "BoolAttrs can only be materialized for special constant types.");
-    return builder.create<SpecialConstantOp>(loc, type, attrValue);
+    return builder.create<SpecialConstantOp>(
+        loc, type.cast<FIRRTLBaseType>().getConstType(true), attrValue);
   }
 
   // Integer constants.

@@ -127,12 +127,12 @@ firrtl.circuit "Foo" {
     // CHECK: node k4 = asClock(UInt<1>(0))
     // CHECK: node k5 = asAsyncReset(UInt<1>(0))
     // CHECK: node k6 = UInt<1>(0)
-    %4 = firrtl.specialconstant 0 : !firrtl.clock
-    %5 = firrtl.specialconstant 0 : !firrtl.asyncreset
-    %6 = firrtl.specialconstant 0 : !firrtl.reset
-    %k4 = firrtl.node %4 : !firrtl.clock
-    %k5 = firrtl.node %5 : !firrtl.asyncreset
-    %k6 = firrtl.node %6 : !firrtl.reset
+    %4 = firrtl.specialconstant 0 : !firrtl.const.clock
+    %5 = firrtl.specialconstant 0 : !firrtl.const.asyncreset
+    %6 = firrtl.specialconstant 0 : !firrtl.const.reset
+    %k4 = firrtl.node %4 : !firrtl.const.clock
+    %k5 = firrtl.node %5 : !firrtl.const.asyncreset
+    %k6 = firrtl.node %6 : !firrtl.const.reset
 
     // CHECK: wire bundle : { a : UInt, flip b : UInt }
     // CHECK: wire vector : UInt[42]

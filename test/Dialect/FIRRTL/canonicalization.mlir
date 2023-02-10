@@ -2335,9 +2335,9 @@ firrtl.module @Issue2291(out %out: !firrtl.uint<1>) {
 //
 // CHECK-LABEL: @Issue2314
 firrtl.module @Issue2314(out %clock: !firrtl.clock, out %reset: !firrtl.reset, out %asyncReset: !firrtl.asyncreset) {
-  // CHECK-DAG: %[[zero_clock:.+]] = firrtl.specialconstant 0 : !firrtl.clock
-  // CHECK-DAG: %[[zero_reset:.+]] = firrtl.specialconstant 0 : !firrtl.reset
-  // CHECK-DAG: %[[zero_asyncReset:.+]] = firrtl.specialconstant 0 : !firrtl.asyncreset
+  // CHECK-DAG: %[[zero_clock:.+]] = firrtl.specialconstant 0 : !firrtl.const.clock
+  // CHECK-DAG: %[[zero_reset:.+]] = firrtl.specialconstant 0 : !firrtl.const.reset
+  // CHECK-DAG: %[[zero_asyncReset:.+]] = firrtl.specialconstant 0 : !firrtl.const.asyncreset
   %inv_clock = firrtl.wire  : !firrtl.clock
   %invalid_clock = firrtl.invalidvalue : !firrtl.clock
   firrtl.connect %inv_clock, %invalid_clock : !firrtl.clock, !firrtl.clock
@@ -2558,9 +2558,9 @@ firrtl.module @CrashAllUnusedPorts() {
 
 // CHECK-LABEL: firrtl.module @CrashRegResetWithOneReset
 firrtl.module @CrashRegResetWithOneReset(in %clock: !firrtl.clock, in %reset: !firrtl.asyncreset, in %io_d: !firrtl.uint<1>, out %io_q: !firrtl.uint<1>, in %io_en: !firrtl.uint<1>) {
-  %c1_asyncreset = firrtl.specialconstant 1 : !firrtl.asyncreset
+  %c1_asyncreset = firrtl.specialconstant 1 : !firrtl.const.asyncreset
   %c0_ui1 = firrtl.constant 0 : !firrtl.const.uint<1>
-  %reg = firrtl.regreset  %clock, %c1_asyncreset, %c0_ui1  : !firrtl.clock, !firrtl.asyncreset, !firrtl.const.uint<1>, !firrtl.uint<1>
+  %reg = firrtl.regreset  %clock, %c1_asyncreset, %c0_ui1  : !firrtl.clock, !firrtl.const.asyncreset, !firrtl.const.uint<1>, !firrtl.uint<1>
   %0 = firrtl.mux(%io_en, %io_d, %reg) : (!firrtl.uint<1>, !firrtl.uint<1>, !firrtl.uint<1>) -> !firrtl.uint<1>
   firrtl.connect %reg, %0 : !firrtl.uint<1>, !firrtl.uint<1>
   firrtl.connect %io_q, %reg : !firrtl.uint<1>, !firrtl.uint<1>

@@ -1642,8 +1642,8 @@ firrtl.circuit "GrandCentralViewInsideCompanion" attributes {
 } {
   // CHECK:      firrtl.module @Companion
   firrtl.module @Companion(out %b: !firrtl.uint<2>) {
-    %clock = firrtl.specialconstant 0 : !firrtl.clock
-    %a = firrtl.reg %clock : !firrtl.clock, !firrtl.uint<1>
+    %clock = firrtl.specialconstant 0 : !firrtl.const.clock
+    %a = firrtl.reg %clock : !firrtl.const.clock, !firrtl.uint<1>
     // CHECK:      firrtl.node %a
     // CHECK-SAME:   {class = "sifive.enterprise.grandcentral.AugmentedGroundType", id = [[aId]] : i64}
     // CHECK-SAME:   : !firrtl.uint<1>

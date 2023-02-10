@@ -41,9 +41,9 @@ firrtl.circuit "Test" {
     firrtl.connect %result1, %someWire : !firrtl.uint<1>, !firrtl.uint<1>
 
     // Trivial wire special constant propagation.
-    %c0_clock = firrtl.specialconstant 0 : !firrtl.clock
+    %c0_clock = firrtl.specialconstant 0 : !firrtl.const.clock
     %clockWire = firrtl.wire interesting_name : !firrtl.clock
-    firrtl.connect %clockWire, %c0_clock : !firrtl.clock, !firrtl.clock
+    firrtl.connect %clockWire, %c0_clock : !firrtl.clock, !firrtl.const.clock
 
     // CHECK: %clockWire = firrtl.wire
     // CHECK: firrtl.connect %clockWire, %c0_clock

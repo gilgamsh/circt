@@ -88,9 +88,9 @@ firrtl.circuit "Simple"   attributes {annotations = [{class =
 
     // CHECK: %clockWire = sv.wire
     // CHECK: sv.assign %clockWire, %false : i1
-    %c0_clock = firrtl.specialconstant 0 : !firrtl.clock
+    %c0_clock = firrtl.specialconstant 0 : !firrtl.const.clock
     %clockWire = firrtl.wire : !firrtl.clock
-    firrtl.connect %clockWire, %c0_clock : !firrtl.clock, !firrtl.clock
+    firrtl.connect %clockWire, %c0_clock : !firrtl.clock, !firrtl.const.clock
 
     // CHECK: sv.assign %out5, %c0_i4 : i4
     %tmp1 = firrtl.invalidvalue : !firrtl.uint<4>

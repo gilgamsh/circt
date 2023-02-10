@@ -120,13 +120,13 @@ def SpecialConstantOp : FIRRTLOp<"specialconstant",
     The constant operation produces a constant value of Reset, AsyncReset, or
     Clock type. The value can only be 0 or 1.
     ```
-      %result = firrtl.specialconstant 1 : !firrtl.clock
+      %result = firrtl.specialconstant 1 : !firrtl.const.clock
     ```
     }];
 
   let arguments = (ins BoolAttr:$value);
   let results = (outs
-    AnyTypeOf<[ClockType, ResetType, AsyncResetType]>:$result);
+    ConstType<AnyTypeOf<[ClockType, ResetType, AsyncResetType]>>:$result);
 
   let hasCustomAssemblyFormat = 1;
   let hasFolder = 1;

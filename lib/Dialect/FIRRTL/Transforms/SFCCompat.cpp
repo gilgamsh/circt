@@ -112,7 +112,7 @@ void SFCCompatPass::runOnOperation() {
             .Case<ClockType, AsyncResetType, ResetType>(
                 [&](auto type) -> Value {
                   return builder.create<SpecialConstantOp>(
-                      type, builder.getBoolAttr(false));
+                      type.getConstType(true), builder.getBoolAttr(false));
                 })
             .Case<IntType>([&](IntType type) -> Value {
               return builder.create<ConstantOp>(type.getConstType(true),
