@@ -139,14 +139,14 @@ def AggregateConstantOp : FIRRTLOp<"aggregateconstant", [Pure, ConstantLike]> {
     type must be passive.  Clock and reset values are supported.
     For nested aggregates, embedded arrays are used.
     ```
-      %result = firrtl.aggregateconstant [1, 2, 3] : !firrtl.bundle<a: uint<8>, b: uint<5>, c: uint<4>>
-      %result = firrtl.aggregateconstant [1, 2, 3] : !firrtl.vector<uint<8>, 3>
-      %result = firrtl.aggregateconstant [[1, 2], [3, 5]] : !firrtl.vector<!firrtl.bundle<a: uint<8>, b: uint<5>>, 2>
+      %result = firrtl.aggregateconstant [1, 2, 3] : !firrtl.const.bundle<a: uint<8>, b: uint<5>, c: uint<4>>
+      %result = firrtl.aggregateconstant [1, 2, 3] : !firrtl.const.vector<uint<8>, 3>
+      %result = firrtl.aggregateconstant [[1, 2], [3, 5]] : !firrtl.const.vector<!firrtl.bundle<a: uint<8>, b: uint<5>>, 2>
     ```
   }];
 
   let arguments = (ins ArrayAttr:$fields);
-  let results = (outs AggregateType:$result);
+  let results = (outs ConstType<AggregateType>:$result);
 
   let assemblyFormat = "$fields attr-dict `:` type($result)";
   let hasFolder = 1;

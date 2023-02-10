@@ -83,7 +83,8 @@ Operation *FIRRTLDialect::materializeConstant(OpBuilder &builder,
   // Aggregate constants.
   if (auto arrayAttr = value.dyn_cast<ArrayAttr>()) {
     if (type.isa<BundleType, FVectorType>())
-      return builder.create<AggregateConstantOp>(loc, type, arrayAttr);
+      return builder.create<AggregateConstantOp>(
+          loc, type.cast<FIRRTLBaseType>().getConstType(true), arrayAttr);
   }
 
   return nullptr;

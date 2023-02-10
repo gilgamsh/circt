@@ -29,9 +29,9 @@ firrtl.module @Constants() {
   // CHECK: firrtl.constant 4 : !firrtl.const.uint<8> {name = "test"}
   firrtl.constant 4 : !firrtl.const.uint<8> {name = "test"}
 
-  firrtl.aggregateconstant [1, 2, 3] : !firrtl.bundle<a: uint<8>, b: uint<5>, c: uint<4>>
-  firrtl.aggregateconstant [1, 2, 3] : !firrtl.vector<uint<8>, 3>
-  firrtl.aggregateconstant [[1, 2], [3, 4]] : !firrtl.vector<bundle<a: uint<8>, b: uint<5>>, 2>
+  firrtl.aggregateconstant [1, 2, 3] : !firrtl.const.bundle<a: uint<8>, b: uint<5>, c: uint<4>>
+  firrtl.aggregateconstant [1, 2, 3] : !firrtl.const.vector<uint<8>, 3>
+  firrtl.aggregateconstant [[1, 2], [3, 4]] : !firrtl.const.vector<bundle<a: uint<8>, b: uint<5>>, 2>
 
 }
 

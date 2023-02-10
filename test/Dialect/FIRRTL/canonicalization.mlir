@@ -693,36 +693,36 @@ firrtl.module @subaccess(out %result: !firrtl.uint<8>, in %vec0: !firrtl.vector<
 firrtl.module @subindex(out %out : !firrtl.uint<8>) {
   // CHECK: %c8_ui8 = firrtl.constant 8 : !firrtl.const.uint<8>
   // CHECK: firrtl.strictconnect %out, %c8_ui8 : !firrtl.uint<8>, !firrtl.const.uint<8>
-  %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.vector<uint<8>, 1>
-  %1 = firrtl.subindex %0[0] : !firrtl.vector<uint<8>, 1>
-  firrtl.strictconnect %out, %1 : !firrtl.uint<8>
+  %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.const.vector<uint<8>, 1>
+  %1 = firrtl.subindex %0[0] : !firrtl.const.vector<uint<8>, 1>
+  firrtl.strictconnect %out, %1 : !firrtl.uint<8>, !firrtl.const.uint<8>
 }
 
 // CHECK-LABEL: firrtl.module @subindex_agg
 firrtl.module @subindex_agg(out %out : !firrtl.bundle<a: uint<8>>) {
-  // CHECK: %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.bundle<a: uint<8>>
-  // CHECK: firrtl.strictconnect %out, %0 : !firrtl.bundle<a: uint<8>>
-  %0 = firrtl.aggregateconstant [[8 : ui8]] : !firrtl.vector<bundle<a: uint<8>>, 1>
-  %1 = firrtl.subindex %0[0] : !firrtl.vector<bundle<a: uint<8>>, 1>
-  firrtl.strictconnect %out, %1 : !firrtl.bundle<a: uint<8>>
+  // CHECK: %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.const.bundle<a: uint<8>>
+  // CHECK: firrtl.strictconnect %out, %0 : !firrtl.bundle<a: uint<8>>, !firrtl.const.bundle<a: uint<8>>
+  %0 = firrtl.aggregateconstant [[8 : ui8]] : !firrtl.const.vector<bundle<a: uint<8>>, 1>
+  %1 = firrtl.subindex %0[0] : !firrtl.const.vector<bundle<a: uint<8>>, 1>
+  firrtl.strictconnect %out, %1 : !firrtl.bundle<a: uint<8>>, !firrtl.const.bundle<a: uint<8>>
 }
 
 // CHECK-LABEL: firrtl.module @subfield
 firrtl.module @subfield(out %out : !firrtl.uint<8>) {
   // CHECK: %c8_ui8 = firrtl.constant 8 : !firrtl.const.uint<8>
   // CHECK: firrtl.strictconnect %out, %c8_ui8 : !firrtl.uint<8>, !firrtl.const.uint<8>
-  %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.bundle<a: uint<8>>
-  %1 = firrtl.subfield %0[a] : !firrtl.bundle<a: uint<8>>
-  firrtl.strictconnect %out, %1 : !firrtl.uint<8>
+  %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.const.bundle<a: uint<8>>
+  %1 = firrtl.subfield %0[a] : !firrtl.const.bundle<a: uint<8>>
+  firrtl.strictconnect %out, %1 : !firrtl.uint<8>, !firrtl.const.uint<8>
 }
 
 // CHECK-LABEL: firrtl.module @subfield_agg
 firrtl.module @subfield_agg(out %out : !firrtl.vector<uint<8>, 1>) {
-  // CHECK: %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.vector<uint<8>, 1>
-  // CHECK: firrtl.strictconnect %out, %0 : !firrtl.vector<uint<8>, 1>
-  %0 = firrtl.aggregateconstant [[8 : ui8]] : !firrtl.bundle<a: vector<uint<8>, 1>>
-  %1 = firrtl.subfield %0[a] : !firrtl.bundle<a: vector<uint<8>, 1>>
-  firrtl.strictconnect %out, %1 : !firrtl.vector<uint<8>, 1>
+  // CHECK: %0 = firrtl.aggregateconstant [8 : ui8] : !firrtl.const.vector<uint<8>, 1>
+  // CHECK: firrtl.strictconnect %out, %0 : !firrtl.vector<uint<8>, 1>, !firrtl.const.vector<uint<8>, 1>
+  %0 = firrtl.aggregateconstant [[8 : ui8]] : !firrtl.const.bundle<a: vector<uint<8>, 1>>
+  %1 = firrtl.subfield %0[a] : !firrtl.const.bundle<a: vector<uint<8>, 1>>
+  firrtl.strictconnect %out, %1 : !firrtl.vector<uint<8>, 1>, !firrtl.const.vector<uint<8>, 1>
 }
 
 // CHECK-LABEL: firrtl.module @issue326
@@ -2233,7 +2233,7 @@ firrtl.module @MergeAgg(out %o: !firrtl.vector<bundle<valid: uint<1>, ready: uin
   firrtl.strictconnect %a20, %c : !firrtl.uint<1>, !firrtl.const.uint<1>
   firrtl.strictconnect %a21, %c : !firrtl.uint<1>, !firrtl.const.uint<1>
   firrtl.strictconnect %o, %a :  !firrtl.vector<bundle<valid: uint<1>, ready: uint<1>>, 3>
-// CHECK: [0 : ui1, 0 : ui1], [0 : ui1, 0 : ui1], [0 : ui1, 0 : ui1]] : !firrtl.vector<bundle<valid: uint<1>, ready: uint<1>>, 3>
+// CHECK: [0 : ui1, 0 : ui1], [0 : ui1, 0 : ui1], [0 : ui1, 0 : ui1]] : !firrtl.const.vector<bundle<valid: uint<1>, ready: uint<1>>, 3>
 // CHECK-NEXT: %a = firrtl.wire   : !firrtl.vector<bundle<valid: uint<1>, ready: uint<1>>, 3>
 // CHECK-NEXT: firrtl.strictconnect %o, %a : !firrtl.vector<bundle<valid: uint<1>, ready: uint<1>>, 3>
 // CHECK-NEXT: firrtl.strictconnect %a, %0 : !firrtl.vector<bundle<valid: uint<1>, ready: uint<1>>, 3>
