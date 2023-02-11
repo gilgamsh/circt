@@ -103,10 +103,12 @@ void circt::firrtl::emitConnect(ImplicitLocOpBuilder &builder, Value dst,
     IntType tmpType = dstType.cast<IntType>();
     if (tmpType.isSigned())
       tmpType = UIntType::get(dstType.getContext(), dstWidth);
-    src = builder.create<TailPrimOp>(tmpType, src, srcWidth - dstWidth);
+    src = builder.create<TailPrimOp>(tmpType.getConstType(srcType.isConst()),
+                                     src, srcWidth - dstWidth);
     // Insert the cast back to signed if needed.
     if (tmpType != dstType)
-      src = builder.create<AsSIntPrimOp>(dstType, src);
+      src = builder.create<AsSIntPrimOp>(
+          dstType.getConstType(srcType.isConst()), src);
   } else if (srcWidth < dstWidth) {
     // Need to extend arg.
     src = builder.create<PadPrimOp>(src, dstWidth);
