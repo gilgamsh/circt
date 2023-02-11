@@ -473,8 +473,8 @@ private:
   /// scope, i.e. not in a WhenOp region, then there is no condition.
   Value andWithCondition(Operation *op, Value value) {
     // 'and' the value with the current condition.
-    return OpBuilder(op).createOrFold<AndPrimOp>(
-        condition.getLoc(), condition.getType(), condition, value);
+    return OpBuilder(op).createOrFold<AndPrimOp>(condition.getLoc(), condition,
+                                                 value);
   }
 
 private:
@@ -526,7 +526,6 @@ void LastConnectResolver<ConcreteT>::processWhenOp(WhenOp whenOp,
   auto loc = whenOp.getLoc();
   Block *parentBlock = whenOp->getBlock();
   auto condition = whenOp.getCondition();
-  auto ui1Type = condition.getType();
 
   // Process both sides of the WhenOp, fixing up all simulation constructs,
   // and resolving last connect semantics in each block. This process returns
@@ -537,7 +536,7 @@ void LastConnectResolver<ConcreteT>::processWhenOp(WhenOp whenOp,
   Value thenCondition = whenOp.getCondition();
   if (outerCondition)
     thenCondition =
-        b.createOrFold<AndPrimOp>(loc, ui1Type, outerCondition, thenCondition);
+        b.createOrFold<AndPrimOp>(loc, outerCondition, thenCondition);
 
   auto &thenBlock = whenOp.getThenBlock();
   driverMap.pushScope();
@@ -555,8 +554,8 @@ void LastConnectResolver<ConcreteT>::processWhenOp(WhenOp whenOp,
         b.createOrFold<NotPrimOp>(loc, condition.getType(), condition);
     // Conjoin the when condition with the outer condition.
     if (outerCondition)
-      elseCondition = b.createOrFold<AndPrimOp>(loc, ui1Type, outerCondition,
-                                                elseCondition);
+      elseCondition =
+          b.createOrFold<AndPrimOp>(loc, outerCondition, elseCondition);
     auto &elseBlock = whenOp.getElseBlock();
     driverMap.pushScope();
     if (failed(
