@@ -67,7 +67,7 @@ Operation *FIRRTLDialect::materializeConstant(OpBuilder &builder,
         (type.isa<ClockType>() || type.isa<AsyncResetType>() ||
          type.isa<ResetType>()))
       return builder.create<SpecialConstantOp>(
-          loc, type,
+          loc, type.cast<FIRRTLBaseType>().getConstType(true),
           builder.getBoolAttr(attrValue.getValue().isAllOnesValue()));
 
     auto intType = type.cast<IntType>();
