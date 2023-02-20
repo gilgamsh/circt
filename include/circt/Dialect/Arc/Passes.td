@@ -11,6 +11,12 @@
 
 include "mlir/Pass/PassBase.td"
 
+def ConvertCombToArith : Pass<"arc-convert-comb-to-arith", "mlir::ModuleOp"> {
+  let summary = "Convert all comb instruction and hw.constant to arith";
+  let constructor = "circt::arc::createConvertCombToArithPass()";
+  let dependentDialects = ["mlir::arith::ArithDialect"];
+}
+
 def Dedup : Pass<"arc-dedup", "mlir::ModuleOp"> {
   let summary = "Deduplicate identical arc definitions";
   let description = [{

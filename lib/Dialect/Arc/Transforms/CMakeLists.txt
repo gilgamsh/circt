@@ -1,4 +1,5 @@
 add_circt_dialect_library(CIRCTArcTransforms
+  ConvertCombToArith.cpp
   Dedup.cpp
   InferMemories.cpp
   InlineArcs.cpp
@@ -18,9 +19,10 @@ add_circt_dialect_library(CIRCTArcTransforms
   CIRCTArc
   CIRCTComb
   CIRCTHW
+  CIRCTSV
   CIRCTSeq
   CIRCTSupport
-  CIRCTSV
+  MLIRArithDialect
   MLIRIR
   MLIRPass
   MLIRTransformUtils
