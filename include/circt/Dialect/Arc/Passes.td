@@ -49,6 +49,11 @@ def MakeTables : Pass<"arc-make-tables", "mlir::ModuleOp"> {
   let dependentDialects = ["arc::ArcDialect"];
 }
 
+def SimplifyVariadicOps : Pass<"arc-simplify-variadic-ops", "mlir::ModuleOp"> {
+  let summary = "Convert variadic ops into distributed binary ops";
+  let constructor = "circt::arc::createSimplifyVariadicOpsPass()";
+}
+
 def SinkInputs : Pass<"arc-sink-inputs", "mlir::ModuleOp"> {
   let summary = "Sink constant inputs into arcs";
   let constructor = "circt::arc::createSinkInputsPass()";
