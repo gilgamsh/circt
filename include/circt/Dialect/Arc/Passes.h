@@ -24,6 +24,7 @@ std::unique_ptr<mlir::Pass> createAllocateStatePass();
 std::unique_ptr<mlir::Pass> createConvertCombToArithPass();
 std::unique_ptr<mlir::Pass> createDedupPass();
 std::unique_ptr<mlir::Pass> createInferMemoriesPass();
+std::unique_ptr<mlir::Pass> createInferStatePropertiesPass();
 std::unique_ptr<mlir::Pass> createInlineArcsPass();
 std::unique_ptr<mlir::Pass> createInlineModulesPass();
 std::unique_ptr<mlir::Pass> createLegalizeStateUpdatePass();

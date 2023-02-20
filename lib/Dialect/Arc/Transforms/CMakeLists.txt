@@ -4,6 +4,7 @@ add_circt_dialect_library(CIRCTArcTransforms
   ConvertCombToArith.cpp
   Dedup.cpp
   InferMemories.cpp
+  InferStateProperties.cpp
   InlineArcs.cpp
   InlineModules.cpp
   LegalizeStateUpdate.cpp
