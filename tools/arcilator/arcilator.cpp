@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "circt/Dialect/Arc/Dialect.h"
+#include "circt/Dialect/Arc/Interfaces.h"
 #include "circt/Dialect/Arc/Ops.h"
 #include "circt/Dialect/Arc/Passes.h"
 #include "circt/InitAllDialects.h"
@@ -203,6 +204,14 @@ static void populatePipeline(PassManager &pm) {
   pm.addPass(arc::createLowerStatePass());
   pm.addPass(createCSEPass());
   pm.addPass(createSimpleCanonicalizerPass());
+
+  // TODO: LowerClocksToFuncsPass might not properly consider scf.if operations
+  // (or nested regions in general) and thus errors out when muxes are also
+  // converted in the hw.module or arc.model
+  // TODO: InlineArcs seems to not properly handle scf.if operations, thus the
+  // following is commented out
+  // pm.addPass(arc::createMuxToControlFlowPass());
+
   if (shouldInline) {
     pm.addPass(arc::createInlineArcsPass());
     pm.addPass(createSimpleCanonicalizerPass());
@@ -330,8 +339,13 @@ static LogicalResult executeArcilator(MLIRContext &context) {
   }
 
   // Register our dialects.
-  context.loadDialect<hw::HWDialect, comb::CombDialect, seq::SeqDialect,
-                      sv::SVDialect, arc::ArcDialect>();
+  DialectRegistry registry;
+  registry.insert<hw::HWDialect, comb::CombDialect, seq::SeqDialect,
+                  sv::SVDialect, arc::ArcDialect>();
+
+  arc::initAllExternalInterfaces(registry);
+  mlir::registerLLVMDialectTranslation(registry);
+  context.appendDialectRegistry(registry);
 
   // Process the input.
   if (failed(processInput(context, ts, std::move(input), outputFile)))
@@ -379,9 +393,7 @@ int main(int argc, char **argv) {
   // Parse pass names in main to ensure static initialization completed.
   cl::ParseCommandLineOptions(argc, argv, "MLIR-based circuit simulator\n");
 
-  DialectRegistry registry;
-  mlir::registerLLVMDialectTranslation(registry);
-  MLIRContext context(registry);
+  MLIRContext context;
 
   auto result = executeArcilator(context);
 
