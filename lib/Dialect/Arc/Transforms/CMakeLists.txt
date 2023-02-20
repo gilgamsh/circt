@@ -6,6 +6,7 @@ add_circt_dialect_library(CIRCTArcTransforms
   InlineArcs.cpp
   InlineModules.cpp
   LowerLUT.cpp
+  LowerState.cpp
   MakeTables.cpp
   RemoveUnusedArcArguments.cpp
   SimplifyVariadicOps.cpp
