@@ -7,8 +7,10 @@ add_circt_dialect_library(CIRCTArcTransforms
   InlineArcs.cpp
   InlineModules.cpp
   LegalizeStateUpdate.cpp
+  LowerClocksToFuncs.cpp
   LowerLUT.cpp
   LowerState.cpp
+  LowerToLLVM.cpp
   MakeTables.cpp
   PrintStateInfo.cpp
   RemoveUnusedArcArguments.cpp
@@ -23,12 +25,17 @@ add_circt_dialect_library(CIRCTArcTransforms
   LINK_LIBS PUBLIC
   CIRCTArc
   CIRCTComb
+  CIRCTCombToLLVM
   CIRCTHW
+  CIRCTHWToLLVM
   CIRCTSV
   CIRCTSeq
   CIRCTSupport
   MLIRArithDialect
+  MLIRControlFlowToLLVM
+  MLIRFuncToLLVM
   MLIRIR
   MLIRPass
+  MLIRSCFToControlFlow
   MLIRTransformUtils
 )

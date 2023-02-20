@@ -76,6 +76,12 @@ def LegalizeStateUpdate : Pass<"arc-legalize-state-update", "mlir::ModuleOp"> {
   let dependentDialects = ["arc::ArcDialect"];
 }
 
+def LowerClocksToFuncs : Pass<"arc-lower-clocks-to-funcs", "mlir::ModuleOp"> {
+  let summary = "Lower clock trees into functions";
+  let constructor = "circt::arc::createLowerClocksToFuncsPass()";
+  let dependentDialects = ["mlir::func::FuncDialect"];
+}
+
 def LowerLUT : Pass<"arc-lower-lut", "arc::DefineOp"> {
   let summary = "Lowers arc.lut into a comb and hw only representation.";
   let constructor = "circt::arc::createLowerLUTPass()";
@@ -86,6 +92,17 @@ def LowerState : Pass<"arc-lower-state", "mlir::ModuleOp"> {
   let summary = "Split state into read and write ops grouped by clock tree";
   let constructor = "circt::arc::createLowerStatePass()";
   let dependentDialects = ["arc::ArcDialect"];
+}
+
+def LowerToLLVM : Pass<"arc-lower-to-llvm", "mlir::ModuleOp"> {
+  let summary = "Lower state transfer arc representation to LLVM";
+  let constructor = "circt::arc::createLowerToLLVMPass()";
+  let dependentDialects = [
+    "arc::ArcDialect",
+    "mlir::LLVM::LLVMDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::func::FuncDialect"
+  ];
 }
 
 def MakeTables : Pass<"arc-make-tables", "mlir::ModuleOp"> {

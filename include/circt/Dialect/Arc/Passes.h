@@ -27,8 +27,10 @@ std::unique_ptr<mlir::Pass> createInferMemoriesPass();
 std::unique_ptr<mlir::Pass> createInlineArcsPass();
 std::unique_ptr<mlir::Pass> createInlineModulesPass();
 std::unique_ptr<mlir::Pass> createLegalizeStateUpdatePass();
+std::unique_ptr<mlir::Pass> createLowerClocksToFuncsPass();
 std::unique_ptr<mlir::Pass> createLowerLUTPass();
 std::unique_ptr<mlir::Pass> createLowerStatePass();
+std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 std::unique_ptr<mlir::Pass> createMakeTablesPass();
 std::unique_ptr<mlir::Pass>
 createPrintStateInfoPass(llvm::StringRef stateFile = "");

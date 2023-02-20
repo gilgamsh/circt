@@ -8,7 +8,13 @@ target_link_libraries(arcilator
   CIRCTConvertToArcs
   CIRCTSupport
   MLIRParser
+  MLIRTargetLLVMIRExport
+  MLIRLLVMToLLVMIRTranslation
 )
 
 llvm_update_compile_flags(arcilator)
 mlir_check_all_link_libraries(arcilator)
+
+configure_file(arcilator-header-cpp.py ${CIRCT_TOOLS_DIR}/arcilator-header-cpp.py)
+add_custom_target(arcilator-header-cpp SOURCES
+  ${CIRCT_TOOLS_DIR}/arcilator-header-cpp.py)
