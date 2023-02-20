@@ -72,7 +72,7 @@ public:
 } // namespace
 
 struct VectorizationPass : public VectorizationBase<VectorizationPass> {
-  VectorizationPass() {}
+  VectorizationPass() = default;
   void runOnOperation() override;
 };
 
@@ -91,7 +91,6 @@ void VectorizationPass::runOnOperation() {
           &getContext());
   mlir::FrozenRewritePatternSet frozenPatterns(std::move(patterns));
   (void)applyPatternsAndFoldGreedily(getOperation(), frozenPatterns);
-  return;
 }
 
 std::unique_ptr<mlir::Pass> circt::firrtl::createVectorizationPass() {
