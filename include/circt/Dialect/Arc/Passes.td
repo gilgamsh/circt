@@ -11,6 +11,16 @@
 
 include "mlir/Pass/PassBase.td"
 
+def AddTaps : Pass<"arc-add-taps", "mlir::ModuleOp"> {
+  let summary = "Add taps to ports and wires such that they remain observable";
+  let constructor = "circt::arc::createAddTapsPass()";
+  let dependentDialects = ["arc::ArcDialect"];
+  let options = [
+    Option<"tapPorts", "ports", "bool", "true", "Make module ports observable">,
+    Option<"tapWires", "wires", "bool", "false", "Make wires observable">
+  ];
+}
+
 def ConvertCombToArith : Pass<"arc-convert-comb-to-arith", "mlir::ModuleOp"> {
   let summary = "Convert all comb instruction and hw.constant to arith";
   let constructor = "circt::arc::createConvertCombToArithPass()";

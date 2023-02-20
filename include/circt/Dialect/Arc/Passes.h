@@ -19,6 +19,7 @@ class Pass;
 namespace circt {
 namespace arc {
 
+std::unique_ptr<mlir::Pass> createAddTapsPass();
 std::unique_ptr<mlir::Pass> createConvertCombToArithPass();
 std::unique_ptr<mlir::Pass> createDedupPass();
 std::unique_ptr<mlir::Pass> createInferMemoriesPass();

@@ -59,6 +59,9 @@ static cl::opt<std::string> outputFilename("o", cl::desc("Output filename"),
                                            cl::init("-"),
                                            cl::cat(mainCategory));
 
+static cl::opt<bool> tap("tap", cl::desc("Tap all ports"), cl::init(false),
+                         cl::cat(mainCategory));
+
 static cl::opt<bool>
     verifyPasses("verify-each",
                  cl::desc("Run the verifier after each transformation pass"),
@@ -116,6 +119,8 @@ static void populatePipeline(PassManager &pm) {
   // represented as intrinsic ops.
   if (untilReached(UntilPreprocessing))
     return;
+  if (tap)
+    pm.addPass(arc::createAddTapsPass());
   pm.addPass(arc::createStripSVPass());
   pm.addPass(arc::createInferMemoriesPass());
   pm.addPass(createCSEPass());
