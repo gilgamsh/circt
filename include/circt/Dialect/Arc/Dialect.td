@@ -18,7 +18,12 @@ def ArcDialect : Dialect {
   }];
   let cppNamespace = "circt::arc";
 
+  let useDefaultTypePrinterParser = 1;
   let useFoldAPI = kEmitFoldAdaptorFolder;
+
+  let extraClassDeclaration = [{
+    void registerTypes();
+  }];
 }
 
 #endif // CIRCT_DIALECT_ARC_DIALECT_TD
