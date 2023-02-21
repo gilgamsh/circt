@@ -319,6 +319,27 @@ struct ReturnOpLowering : public OpConversionPattern<func::ReturnOp> {
   }
 };
 
+struct ZeroCountOpLowering : public OpConversionPattern<arc::ZeroCountOp> {
+  using OpConversionPattern::OpConversionPattern;
+  LogicalResult
+  matchAndRewrite(arc::ZeroCountOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // Use poison when input is zero.
+    Value undef = rewriter.create<LLVM::ConstantOp>(op->getLoc(),
+                                                    rewriter.getI1Type(), true);
+
+    if (op.getPredicate() == arc::ZeroCountPredicate::leading) {
+      rewriter.replaceOpWithNewOp<LLVM::CountLeadingZerosOp>(
+          op, adaptor.getInput().getType(), adaptor.getInput(), undef);
+      return success();
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::CountTrailingZerosOp>(
+        op, adaptor.getInput().getType(), adaptor.getInput(), undef);
+    return success();
+  }
+};
+
 } // namespace
 
 static bool isArcType(Type type) {
@@ -400,7 +421,8 @@ static void populateOpConversion(RewritePatternSet &patterns,
     MemoryWriteOpLowering,
     ClockGateOpLowering,
     StorageGetOpLowering,
-    ReturnOpLowering
+    ReturnOpLowering,
+    ZeroCountOpLowering
   >(typeConverter, context);
   // clang-format on
 
