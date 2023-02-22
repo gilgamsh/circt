@@ -689,6 +689,10 @@ void IMConstPropPass::visitOperation(Operation *op) {
                          << "\n";
       op->dump();
     });
+
+    if (auto inferredOp = dyn_cast<mlir::InferTypeOpInterface>(op))
+      reinferResultTypes(op);
+
     for (auto value : op->getResults())
       markOverdefined(value);
     return;
@@ -752,6 +756,7 @@ void IMConstPropPass::rewriteModuleBody(FModuleOp module) {
   // Unique constants per <Const,Type> pair, inserted at entry
   DenseMap<std::pair<Attribute, Type>, Operation *> constPool;
   auto getConst = [&](Attribute constantValue, Type type, Location loc) {
+    type = type.cast<FIRRTLBaseType>().getConstType(true);
     auto constIt = constPool.find({constantValue, type});
     if (constIt != constPool.end()) {
       auto *cst = constIt->second;
@@ -805,8 +810,7 @@ void IMConstPropPass::rewriteModuleBody(FModuleOp module) {
         getConst(it->second.getValue(), value.getType(), value.getLoc());
 
     replaceIfNotConnect(cstValue);
-    if (failed(propogateConstToUsersOf(cstValue)))
-      signalPassFailure();
+    propagateTypeChangeToUsersOf(cstValue);
     return true;
   };
 

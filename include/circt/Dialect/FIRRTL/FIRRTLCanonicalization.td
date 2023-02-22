@@ -96,6 +96,8 @@ def OneConstantOp : Constraint<Or<[
 /// Constraint that matches an all ones ConstantOp.
 def AllOneConstantOp : Constraint<CPred<"$0.getDefiningOp<ConstantOp>() && $0.getDefiningOp<ConstantOp>().getValue().isAllOnes()">>;
 
+def NonConstType : Constraint<CPred<"!isConst($0.getType())">>;
+
 /// Drop the writer to the first argument and passthrough the second
 def DropWrite : NativeCodeCall<"dropWrite($_builder, $0, $1)">;
 
@@ -242,13 +244,13 @@ def SubFromZeroUnsigned : Pat <
 //sub(a,a) -> 0
 def SubOfSelf : Pat <
   (SubPrimOp:$old $x, $x),
-  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>(), getIntZerosAttr($0.getType()))"> $old),
+  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>().getConstType(true), getIntZerosAttr($0.getType()))"> $old),
   [(KnownWidth $x)]>;
 
 // and(x, 0) -> 0, fold can't handle all cases
 def AndOfZero : Pat <
   (AndPrimOp:$old $x, (ConstantOp:$zcst $cst)),
-  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>(), getIntZerosAttr($0.getType()))"> $old),
+  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>().getConstType(true), getIntZerosAttr($0.getType()))"> $old),
   [(KnownWidth $x), (ZeroConstantOp $zcst)]>;
 
 // and(x, -1) -> x, fold can't handle all cases
@@ -290,7 +292,7 @@ def XorOfZero : Pat <
 /// xor(x,x) -> 0, fold can't handle all cases
 def XorOfSelf : Pat <
   (XorPrimOp:$old $x, $x),
-  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>(), getIntZerosAttr($0.getType()))"> $old),
+  (NativeCodeCall<"$_builder.create<ConstantOp>($0.getLoc(), $0.getType().cast<IntType>().getConstType(true), getIntZerosAttr($0.getType()))"> $old),
   [(KnownWidth $x)]>;
 
 // bits(bits(x, ...), ...) -> bits(x, ...)

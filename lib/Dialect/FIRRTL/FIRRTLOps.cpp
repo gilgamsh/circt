@@ -255,7 +255,7 @@ void getAsmBlockArgumentNamesImpl(Operation *op, mlir::Region &region,
 static ParseResult parseNameKind(OpAsmParser &parser,
                                  firrtl::NameKindEnumAttr &result);
 
-LogicalResult firrtl::propogateConstToUsersOf(Value value) {
+void firrtl::propagateTypeChangeToUsersOf(Value value) {
   SmallVector<Value> worklist{value};
   while (!worklist.empty()) {
     auto value = worklist.pop_back_val();
@@ -266,7 +266,7 @@ LogicalResult firrtl::propogateConstToUsersOf(Value value) {
                 op->getContext(), op->getLoc(), op->getOperands(),
                 op->getAttrDictionary(), op->getRegions(),
                 inferredReturnTypes))) {
-          return failure();
+          return;
         }
 
         for (size_t i = 0, e = inferredReturnTypes.size(); i != e; ++i) {
@@ -280,8 +280,24 @@ LogicalResult firrtl::propogateConstToUsersOf(Value value) {
       }
     }
   }
+}
 
-  return success();
+bool firrtl::reinferResultTypes(mlir::InferTypeOpInterface op) {
+  SmallVector<Type, 4> inferredReturnTypes;
+  if (failed(op.inferReturnTypes(op->getContext(), op->getLoc(),
+                                 op->getOperands(), op->getAttrDictionary(),
+                                 op->getRegions(), inferredReturnTypes))) {
+    return false;
+  }
+
+  for (size_t i = 0, e = inferredReturnTypes.size(); i != e; ++i) {
+    auto result = op->getResult(i);
+    auto inferredType = inferredReturnTypes[i];
+    if (result.getType() != inferredType) {
+      result.setType(inferredType);
+    }
+  }
+  return true;
 }
 
 //===----------------------------------------------------------------------===//

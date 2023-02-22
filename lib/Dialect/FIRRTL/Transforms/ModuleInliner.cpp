@@ -465,7 +465,7 @@ static void replaceRefEdges(SmallVectorImpl<Backedge> &edges) {
       moveUseAfterDef(v.getDefiningOp(), driver.getDefiningOp());
     // Resolve the edge (RAUW to driver).
     edge.setValue(driver, true);
-    (void)(propogateConstToUsersOf(driver));
+    propagateTypeChangeToUsersOf(driver);
   }
 
   edges.clear();

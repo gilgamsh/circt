@@ -131,10 +131,7 @@ void SFCCompatPass::runOnOperation() {
     inv.replaceAllUsesWith(replacement);
     inv.erase();
     madeModifications = true;
-
-    if (isConst(replacement.getType()) &&
-        failed(propogateConstToUsersOf(replacement)))
-      signalPassFailure();
+    propagateTypeChangeToUsersOf(replacement);
   }
 
   if (!madeModifications)

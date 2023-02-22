@@ -133,7 +133,10 @@ StrictConnectOp getSingleConnectUserOf(Value value);
 /// Iterate over users of the specified value that infer result types and
 /// reinfer them. This is meant to be used when an operand is replaced with a
 /// 'const' version, where the result types might change to be 'const'.
-LogicalResult propogateConstToUsersOf(Value value);
+void propagateTypeChangeToUsersOf(Value value);
+
+/// Reinfer the result types, updating the op in place.
+bool reinferResultTypes(mlir::InferTypeOpInterface op);
 
 // Out-of-line implementation of various trait verification methods and
 // functions commonly used among operations.
