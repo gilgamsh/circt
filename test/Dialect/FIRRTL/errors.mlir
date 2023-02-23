@@ -1129,3 +1129,13 @@ firrtl.circuit "hi" {
     // expected-error @below {{redefinition of symbol named 'hi'}}
     firrtl.module @hi() {}
 }
+
+// -----
+// Bitcast non-const to const
+
+firrtl.circuit "BitcastNonConstToConst" {
+  firrtl.module @BitcastNonConstToConst(in %a: !firrtl.uint<1>) {
+    // expected-error @+1 {{cannot cast non-'const' input type '!firrtl.uint<1>' to 'const' result type '!firrtl.const.sint<1>'}}
+    %b = firrtl.bitcast %a : (!firrtl.uint<1>) -> !firrtl.const.sint<1>
+  }
+}

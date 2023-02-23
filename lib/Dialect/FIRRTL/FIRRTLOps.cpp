@@ -3673,8 +3673,14 @@ LogicalResult BitCastOp::verify() {
   auto resTypeBits = getBitWidth(getType());
   if (inTypeBits.has_value() && resTypeBits.has_value()) {
     // Bitwidths must match for valid bit
-    if (*inTypeBits == *resTypeBits)
+    if (*inTypeBits == *resTypeBits) {
+      // non-'const' cannot be casted to 'const'
+      if (isConst(getType()) && !isConst(getOperand().getType()))
+        return emitError("cannot cast non-'const' input type ")
+               << getOperand().getType() << " to 'const' result type "
+               << getType();
       return success();
+    }
     return emitError("the bitwidth of input (")
            << *inTypeBits << ") and result (" << *resTypeBits
            << ") don't match";
