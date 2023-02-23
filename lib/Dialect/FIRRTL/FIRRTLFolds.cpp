@@ -186,16 +186,27 @@ static bool isConstantZero(Attribute operand) {
   return false;
 }
 
+/// Return the result attribute, updating `op`'s result type to be a 'const'
+/// version of itself. This ensures that `materializeConstant` is provided a
+/// 'const' type for constant ops.
 static Attribute foldResult(Operation *op, Attribute result) {
   assert(op->getNumResults() == 1 && "expected single result op");
-  if (result)
-    op->getResult(0).setType(
-        op->getResultTypes()[0].cast<FIRRTLBaseType>().getConstType(true));
+  if (auto resultType = op->getResultTypes()[0].dyn_cast<FIRRTLBaseType>();
+      resultType && result)
+    op->getResult(0).setType(resultType.getConstType(true));
   return result;
 }
 
+/// Return the result value, updating `op`'s result type to be a the type of the
+/// value. The value and op result types can only differ by constness.
+/// MLIR's canonicalizer checks that folded values have types identical to the
+/// types of the op results they are replacing. Updating the op result type here
+/// allows that check to pass.
 static Value foldResult(Operation *op, Value result) {
   assert(op->getNumResults() == 1 && "expected single result op");
+  assert(mixedConstTypes(op->getResultTypes()[0].cast<FIRRTLBaseType>(),
+                         result.getType().cast<FIRRTLBaseType>()) &&
+         "result type can only differ by constness");
   op->getResult(0).setType(result.getType());
   return result;
 }
