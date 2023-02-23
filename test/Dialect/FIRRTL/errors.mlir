@@ -1139,3 +1139,13 @@ firrtl.circuit "BitcastNonConstToConst" {
     %b = firrtl.bitcast %a : (!firrtl.uint<1>) -> !firrtl.const.sint<1>
   }
 }
+
+// -----
+// NonConstInferredConst
+
+firrtl.circuit "NonConstInferredConst" {
+  firrtl.module @NonConstInferredConst(in %a: !firrtl.const.uint<1>) {
+    // expected-error @+1 {{'firrtl.add' op inferred type(s) '!firrtl.const.uint<2>' are incompatible with return type(s) of operation '!firrtl.uint<2>'}}
+    %b = firrtl.add %a, %a : (!firrtl.const.uint<1>, !firrtl.const.uint<1>) -> !firrtl.uint<2>
+  }
+}
