@@ -318,3 +318,23 @@ firrtl.circuit "DeadInputPort"  {
     firrtl.strictconnect %b, %bar_a : !firrtl.uint<1>
   }
 }
+
+// -----
+// CHECK-LABEL: firrtl.circuit "PropagateConstType"
+firrtl.circuit "PropagateConstType" {
+  // CHECK-NOT: firrtl.module private @Bar
+  firrtl.module private @Bar(out %a: !firrtl.uint<1>) {
+    %c = firrtl.constant 1 : !firrtl.const.uint<1>
+    firrtl.strictconnect %a, %c : !firrtl.uint<1>, !firrtl.const.uint<1>
+  }
+
+  // CHECK-LABEL: firrtl.module @PropagateConstType
+  firrtl.module @PropagateConstType(out %a: !firrtl.uint<1>) {
+    // CHECK-NEXT: [[CONST:%.+]] = firrtl.constant 1 : !firrtl.const.uint<1>
+    // CHECK-NEXT: [[VAL:%.+]] = firrtl.not [[CONST]] : (!firrtl.const.uint<1>) -> !firrtl.const.uint<1>
+    // CHECK-NEXT: firrtl.strictconnect %a, [[VAL]] : !firrtl.uint<1>, !firrtl.const.uint<1>
+    %bar_a = firrtl.instance bar  @Bar(out a: !firrtl.uint<1>)
+    %0 = firrtl.not %bar_a : (!firrtl.uint<1>) -> !firrtl.uint<1>
+    firrtl.strictconnect %a, %0 : !firrtl.uint<1>
+  }
+}
