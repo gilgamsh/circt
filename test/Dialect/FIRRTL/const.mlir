@@ -30,4 +30,15 @@ firrtl.module @ConstBundle(in %a: !firrtl.const.bundle<a: uint<1>, b: sint<2>>) 
 // CHECK-LABEL: firrtl.module @MixedConstBundle(in %a: !firrtl.bundle<a: uint<1>, b: const.sint<2>>) {
 firrtl.module @MixedConstBundle(in %a: !firrtl.bundle<a: uint<1>, b: const.sint<2>>) {}
 
+// Subaccess of a const vector should be const only if the index is const
+// CHECK-LABEL: firrtl.module @ConstSubAccess
+firrtl.module @ConstSubAccess(in %a: !firrtl.const.vector<uint<1>, 3>, in %constIndex: !firrtl.const.uint<4>, in %dynamicIndex: !firrtl.uint<4>) {
+  // CHECK-NEXT: [[VAL0:%.+]] = firrtl.subaccess %a[%constIndex] : !firrtl.const.vector<uint<1>, 3>, !firrtl.const.uint<4>
+  // CHECK-NEXT: [[VAL1:%.+]] = firrtl.subaccess %a[%dynamicIndex] : !firrtl.const.vector<uint<1>, 3>, !firrtl.uint<4>
+  // CHECK-NEXT: [[_:%.+]] = firrtl.and [[VAL0]], [[VAL1]] : (!firrtl.const.uint<1>, !firrtl.uint<1>) -> !firrtl.uint<1>
+  %b = firrtl.subaccess %a[%constIndex] : !firrtl.const.vector<uint<1>, 3>, !firrtl.const.uint<4>
+  %c = firrtl.subaccess %a[%dynamicIndex] : !firrtl.const.vector<uint<1>, 3>, !firrtl.uint<4>
+  %d = firrtl.and %b, %c : (!firrtl.const.uint<1>, !firrtl.uint<1>) -> !firrtl.uint<1>
+}
+
 }
