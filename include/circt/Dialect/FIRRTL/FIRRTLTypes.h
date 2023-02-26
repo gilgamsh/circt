@@ -80,8 +80,10 @@ public:
   /// types recursively within itself.
   bool isPassive() { return getRecursiveTypeProperties().isPassive; }
 
-  /// Returns true if this is a "passive" that which is not analog.
-  bool isRegisterType() { return isPassive() && !containsAnalog(); }
+  /// Returns true if this is a non-const "passive" that which is not analog.
+  bool isRegisterType() {
+    return isPassive() && !containsAnalog() && !isConst();
+  }
 
   /// Return true if this is a 'ground' type, aka a non-aggregate type.
   bool isGround();
