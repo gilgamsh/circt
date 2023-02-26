@@ -363,7 +363,7 @@ firrtl.circuit "OneAddressMasked" {
       out %result_read: !firrtl.uint<32>) {
 
 
-    %c1_ui1 = firrtl.constant 1 : !firrtl.uint<1>
+    %c1_ui1 = firrtl.constant 1 : !firrtl.const.uint<1>
 
     %Memory_read, %Memory_write = firrtl.mem Undefined
       {
@@ -382,7 +382,7 @@ firrtl.circuit "OneAddressMasked" {
     %read_addr = firrtl.subfield %Memory_read[addr] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
     firrtl.connect %read_addr, %addr : !firrtl.uint<1>, !firrtl.uint<1>
     %read_en = firrtl.subfield %Memory_read[en] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
-    firrtl.connect %read_en, %c1_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+    firrtl.connect %read_en, %c1_ui1 : !firrtl.uint<1>, !firrtl.const.uint<1>
     %read_clk = firrtl.subfield %Memory_read[clk] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
     firrtl.connect %read_clk, %clock : !firrtl.clock, !firrtl.clock
     %read_data = firrtl.subfield %Memory_read[data] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
@@ -450,7 +450,7 @@ firrtl.circuit "OneAddressNoMask" {
     // CHECK: %Memory_rw_wdata_2 = firrtl.reg %clock : !firrtl.clock, !firrtl.uint<32>
     // CHECK: firrtl.strictconnect %Memory_rw_wdata_2, %Memory_rw_wdata_1 : !firrtl.uint<32>
 
-    %c1_ui1 = firrtl.constant 1 : !firrtl.uint<1>
+    %c1_ui1 = firrtl.constant 1 : !firrtl.const.uint<1>
 
     %Memory_read, %Memory_rw, %Memory_write = firrtl.mem Undefined
       {
@@ -480,7 +480,7 @@ firrtl.circuit "OneAddressNoMask" {
     %read_addr = firrtl.subfield %Memory_read[addr] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
     firrtl.connect %read_addr, %addr : !firrtl.uint<1>, !firrtl.uint<1>
     %read_en = firrtl.subfield %Memory_read[en] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
-    firrtl.connect %read_en, %c1_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+    firrtl.connect %read_en, %c1_ui1 : !firrtl.uint<1>, !firrtl.const.uint<1>
     %read_clk = firrtl.subfield %Memory_read[clk] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
     firrtl.connect %read_clk, %clock : !firrtl.clock, !firrtl.clock
     %read_data = firrtl.subfield %Memory_read[data] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data flip: uint<32>>
@@ -500,7 +500,7 @@ firrtl.circuit "OneAddressNoMask" {
     %rw_wdata = firrtl.subfield %Memory_rw[wdata] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, rdata flip: uint<32>, wmode: uint<1>, wdata: uint<32>, wmask: uint<1>>
     firrtl.connect %rw_wdata, %in_data : !firrtl.uint<32>, !firrtl.uint<32>
     %rw_wmask = firrtl.subfield %Memory_rw[wmask] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, rdata flip: uint<32>, wmode: uint<1>, wdata: uint<32>, wmask: uint<1>>
-    firrtl.connect %rw_wmask, %c1_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+    firrtl.connect %rw_wmask, %c1_ui1 : !firrtl.uint<1>, !firrtl.const.uint<1>
 
     // CHECK: [[WRITING:%.+]] = firrtl.and %in_rwen, %wmode_rw : (!firrtl.uint<1>, !firrtl.uint<1>) -> !firrtl.uint<1>
     // CHECK: %Memory_rw_wen_0 = firrtl.reg %clock : !firrtl.clock, !firrtl.uint<1>
@@ -521,6 +521,6 @@ firrtl.circuit "OneAddressNoMask" {
     %write_data = firrtl.subfield %Memory_write[data] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data: uint<32>, mask: uint<1>>
     firrtl.connect %write_data, %in_data : !firrtl.uint<32>, !firrtl.uint<32>
     %write_mask = firrtl.subfield %Memory_write[mask] : !firrtl.bundle<addr: uint<1>, en: uint<1>, clk: clock, data: uint<32>, mask: uint<1>>
-    firrtl.connect %write_mask, %c1_ui1 : !firrtl.uint<1>, !firrtl.uint<1>
+    firrtl.connect %write_mask, %c1_ui1 : !firrtl.uint<1>, !firrtl.const.uint<1>
   }
 }

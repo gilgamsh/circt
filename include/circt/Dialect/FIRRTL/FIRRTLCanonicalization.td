@@ -43,16 +43,16 @@ def NullAttr : Constraint<CPred<"!$0">>;
 
 // Constraint that enforces types are equal except for constness
 def MixedConstTypes : Constraint<CPred<[{
-  $0.getType() == $1.getType() || 
+  $0.getType() == $1.getType() ||
   ($0.getType().isa<FIRRTLBaseType>() && $1.getType().isa<FIRRTLBaseType>() &&
    $0.getType().cast<FIRRTLBaseType>().getConstType(false) == $1.getType().cast<FIRRTLBaseType>().getConstType(false))
 }]>>;
 
 // Constraint that enforces types are equal except the right-hand type
-// can be const 
+// can be const
 def ConnectableTypes : Constraint<CPred<[{
-  $0.getType() == $1.getType() || 
-  ($1.getType().isa<FIRRTLBaseType>() && 
+  $0.getType() == $1.getType() ||
+  ($1.getType().isa<FIRRTLBaseType>() &&
    $1.getType().cast<FIRRTLBaseType>().getConstType(false) == $0.getType())
 }]>>;
 
@@ -314,7 +314,7 @@ def SubaccessOfConstant : Pat<
 def MuxNot : Pat<
   (MuxPrimOp:$old $cond, (ConstantOp:$zcst $_), (ConstantOp:$ocst $_)),
   (MoveNameHint $old, (NotPrimOp $cond)), [
-    (EqualTypes $cond, $zcst),
+    (MixedConstTypes $cond, $zcst),
     (ZeroConstantOp $zcst) , (OneConstantOp $ocst)
   ]>;
 
