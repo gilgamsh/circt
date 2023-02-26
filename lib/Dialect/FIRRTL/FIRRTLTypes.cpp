@@ -604,7 +604,11 @@ static bool areBundleElementsEquivalent(BundleType::BundleElement destElement,
   if (destElement.isFlip != srcElement.isFlip)
     return false;
 
-  return areTypesEquivalent(destElement.type, srcElement.type);
+  // Constness is allowed to decay from src to dest, so element types are passed
+  // here in flow order
+  return destElement.isFlip
+             ? areTypesEquivalent(srcElement.type, destElement.type)
+             : areTypesEquivalent(destElement.type, srcElement.type);
 }
 
 /// Returns whether the two types are equivalent.  This implements the exact
@@ -619,8 +623,10 @@ bool firrtl::areTypesEquivalent(FIRRTLType destFType, FIRRTLType srcFType) {
   if (!destType || !srcType)
     return destFType == srcFType;
 
-  // Type constness must match for equivalence
-  if (destType.isConst() && !srcType.isConst())
+  // Type constness (allowing decay from src to dest) must match for
+  // equivalence. If this is not a passive type, flippedness needs to be
+  // accounted for, so individual element types must be checked.
+  if (destType.isPassive() && destType.isConst() && !srcType.isConst())
     return false;
 
   // Reset types can be driven by UInt<1>, AsyncReset, or Reset types.

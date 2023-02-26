@@ -211,4 +211,14 @@ firrtl.module @ConstToNonConstVec(in %in : !firrtl.const.vector<uint<1>, 3>, out
   firrtl.connect %out, %in : !firrtl.vector<uint<1>, 3>, !firrtl.const.vector<uint<1>, 3>
 }
 
+firrtl.module @NonConstToConstFlipped(in %in: !firrtl.bundle<x flip: uint<1>>, out %out: !firrtl.const.bundle<x flip: uint<1>>) {
+  // CHECK: firrtl.connect %out, %in : !firrtl.const.bundle<x flip: uint<1>>, !firrtl.bundle<x flip: uint<1>>
+  firrtl.connect %out, %in : !firrtl.const.bundle<x flip: uint<1>>, !firrtl.bundle<x flip: uint<1>>
+}
+
+firrtl.module @MixedConstWithFlipped (in %in: !firrtl.bundle<x flip: uint<1>, y: const.sint<2>>, out %out: !firrtl.bundle<x flip: const.uint<1>, y: sint<2>>) {
+  // CHECK: firrtl.connect %out, %in : !firrtl.bundle<x flip: const.uint<1>, y: sint<2>>, !firrtl.bundle<x flip: uint<1>, y: const.sint<2>>
+  firrtl.connect %out, %in : !firrtl.bundle<x flip: const.uint<1>, y: sint<2>>, !firrtl.bundle<x flip: uint<1>, y: const.sint<2>>
+}
+
 }

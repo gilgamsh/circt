@@ -537,3 +537,14 @@ firrtl.module @test(in %a : !firrtl.uint<1>, out %b : !firrtl.const.uint<1>) {
   firrtl.connect %b, %a : !firrtl.const.uint<1>, !firrtl.uint<1>
 }
 }
+
+// -----
+
+/// Const flip types cannot be connected to non-const flip types
+
+firrtl.circuit "test" {
+firrtl.module @test(in %a: !firrtl.const.bundle<x flip: uint<1>>, out %b: !firrtl.bundle<x flip: uint<1>>) {
+  // expected-error @+1 {{type mismatch}}
+  firrtl.connect %b, %a : !firrtl.bundle<x flip: uint<1>>, !firrtl.const.bundle<x flip: uint<1>>
+}
+}
