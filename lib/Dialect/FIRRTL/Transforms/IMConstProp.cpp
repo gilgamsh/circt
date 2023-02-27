@@ -683,15 +683,18 @@ void IMConstPropPass::visitOperation(Operation *op) {
   // fails or was an in-place fold, mark the results as overdefined.
   SmallVector<OpFoldResult, 8> foldResults;
   foldResults.reserve(op->getNumResults());
-  if (failed(op->fold(operandConstants, foldResults))) {
+  auto foldResult = op->fold(operandConstants, foldResults);
+
+  // Fold can affect result type constness, so reinfer the types here
+  if (auto inferredOp = dyn_cast<mlir::InferTypeOpInterface>(op))
+    reinferResultTypes(op);
+
+  if (failed(foldResult)) {
     LLVM_DEBUG({
       logger.startLine() << "Folding Failed operation : '" << op->getName()
                          << "\n";
       op->dump();
     });
-
-    if (auto inferredOp = dyn_cast<mlir::InferTypeOpInterface>(op))
-      reinferResultTypes(op);
 
     for (auto value : op->getResults())
       markOverdefined(value);
